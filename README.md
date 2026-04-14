@@ -116,3 +116,4 @@ La CI execute aussi ces deux verifications sur chaque push et sur chaque pull re
 
 - `docs/ARCHITECTURE.md`
 - `docs/OPERATIONS.md`
+- `docs/CONTRIBUTING.md`

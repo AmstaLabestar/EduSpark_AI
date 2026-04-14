@@ -33,7 +33,7 @@ function stripCodeFences(text: string): string {
   return trimmed;
 }
 
-async function callGeminiChat(params: {
+async function callExerciseGenerationService(params: {
   apiKey: string;
   prompt: string;
 }): Promise<string> {
@@ -62,7 +62,7 @@ async function callGeminiChat(params: {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = (json as { error?: { message?: string } })?.error?.message ??
-      "GEMINI_REQUEST_FAILED";
+      "EXERCISE_SERVICE_REQUEST_FAILED";
     throw new Error(msg);
   }
 
@@ -71,7 +71,7 @@ async function callGeminiChat(params: {
   })?.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!content || typeof content !== "string") {
-    throw new Error("GEMINI_EMPTY_RESPONSE");
+    throw new Error("EXERCISE_SERVICE_EMPTY_RESPONSE");
   }
 
   return content.trim();
@@ -200,8 +200,8 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "MISSING_COURSE_TEXT" }, { status: 400 });
     }
 
-    const geminiKey = Deno.env.get("GOOGLE_API_KEY") ?? "";
-    if (!geminiKey) {
+    const generationApiKey = Deno.env.get("GOOGLE_API_KEY") ?? "";
+    if (!generationApiKey) {
       return jsonResponse({ error: "MISSING_GOOGLE_API_KEY" }, { status: 500 });
     }
 
@@ -235,8 +235,8 @@ Deno.serve(async (req: Request) => {
 
     const fullPrompt = systemPrompt + userPrompt;
 
-    const raw = await callGeminiChat({
-      apiKey: geminiKey,
+    const raw = await callExerciseGenerationService({
+      apiKey: generationApiKey,
       prompt: fullPrompt,
     });
 
@@ -273,4 +273,3 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
-
