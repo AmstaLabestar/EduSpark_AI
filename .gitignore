@@ -1,0 +1,10 @@
+node_modules
+dist
+.npm-cache
+.sixth
+.env
+.env.*
+.DS_Store
+.supabase/
+supabase/.temp/
+supabase/.branches/
