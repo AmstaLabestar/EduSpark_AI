@@ -21,7 +21,7 @@ type QuestionRow = {
 const initialAiMessage: ChatMessage = {
   id: "welcome",
   sender: "ai",
-  text: "Bonjour. Pose ta question sur ce cours, et je vais t'aider pas a pas.",
+  text: "Bonjour. Pose ta question sur ce cours, et je t'aiderai etape par etape.",
   createdAt: new Date(),
   status: "sent",
 };
@@ -114,7 +114,7 @@ export function useChat(courseId?: string, userId?: string) {
         {
           id: `a:${tempId}`,
           sender: "ai",
-          text: "Je prepare une reponse...",
+          text: "Je prepare une reponse claire a partir du cours...",
           createdAt: new Date(),
           status: "pending",
         },

@@ -220,7 +220,7 @@ export async function getSignedCoursePdfUrl(params: {
     .from("course_pdfs")
     .createSignedUrl(pdfPath, expiresInSeconds);
   if (error) throw new Error("Impossible d'ouvrir le PDF pour le moment.");
-  if (!data?.signedUrl) throw new Error("URL PDF indisponible");
+  if (!data?.signedUrl) throw new Error("Lien du PDF indisponible.");
   return data.signedUrl;
 }
 
