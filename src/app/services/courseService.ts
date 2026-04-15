@@ -132,16 +132,40 @@ export async function listTeacherStudents(teacherId: string): Promise<
 export async function getCourseById(courseId: string): Promise<
   (CourseRow & { teacher: Pick<ProfileRow, "full_name"> | null }) | null
 > {
-  const { data, error } = await supabase
-    .from("courses")
-    .select("id,teacher_id,title,description,content_text,pdf_path,course_code,created_at, teacher:profiles(full_name)")
-    .eq("id", courseId)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("get_course_details", {
+    p_course_id: courseId,
+  });
 
   if (error) throw error;
-  return data as unknown as (CourseRow & {
-    teacher: Pick<ProfileRow, "full_name"> | null;
-  }) | null;
+
+  const row = Array.isArray(data) ? data[0] ?? null : data;
+  if (!row) return null;
+
+  const typedRow = row as {
+    id: string;
+    teacher_id: string;
+    title: string;
+    description: string | null;
+    content_text: string | null;
+    pdf_path: string | null;
+    course_code: string;
+    created_at: string;
+    teacher_full_name: string | null;
+  };
+
+  return {
+    id: typedRow.id,
+    teacher_id: typedRow.teacher_id,
+    title: typedRow.title,
+    description: typedRow.description,
+    content_text: typedRow.content_text,
+    pdf_path: typedRow.pdf_path,
+    course_code: typedRow.course_code,
+    created_at: typedRow.created_at,
+    teacher: typedRow.teacher_full_name
+      ? { full_name: typedRow.teacher_full_name }
+      : null,
+  };
 }
 
 export async function createCourse(params: {

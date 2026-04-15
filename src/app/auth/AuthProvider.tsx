@@ -37,6 +37,27 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function deriveProfileFromUser(user: User | null): Profile | null {
+  if (!user?.id) return null;
+
+  const meta = user.user_metadata as {
+    full_name?: unknown;
+    role?: unknown;
+  } | null;
+
+  const role = meta?.role === "teacher" ? "teacher" : "student";
+  const fullName =
+    typeof meta?.full_name === "string" && meta.full_name.trim()
+      ? meta.full_name.trim()
+      : null;
+
+  return {
+    id: user.id,
+    full_name: fullName,
+    role,
+  };
+}
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -88,12 +109,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
     const profileRow = await fetchProfile(user.id);
-    setProfile(profileRow);
+    setProfile(profileRow ?? deriveProfileFromUser(user));
   }, [user?.id]);
 
   const syncSessionState = useCallback(
     async (nextSession: Session | null) => {
       const nextUser = nextSession?.user ?? null;
+      const fallbackProfile = deriveProfileFromUser(nextUser);
 
       setLoading(true);
       setSession(nextSession);
@@ -105,22 +127,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      setProfile((currentProfile) => {
+        if (currentProfile?.id === nextUser.id) return currentProfile;
+        return fallbackProfile;
+      });
+      setLoading(false);
+
       try {
         const profileRow = await fetchProfile(nextUser.id);
-        setProfile((currentProfile) => {
-          if (profileRow) return profileRow;
-          if (currentProfile?.id === nextUser.id) return currentProfile;
-          return null;
-        });
+        if (profileRow) {
+          setProfile(profileRow);
+        }
       } catch {
-        setProfile((currentProfile) =>
-          currentProfile?.id === nextUser.id ? currentProfile : null
-        );
-      } finally {
-        setLoading(false);
+        setProfile((currentProfile) => currentProfile ?? fallbackProfile);
       }
     },
-    [],
+    [setLoading],
   );
 
   useEffect(() => {
