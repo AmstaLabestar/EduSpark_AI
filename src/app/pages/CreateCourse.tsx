@@ -3,6 +3,11 @@ import { useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle, Copy, FileText, Upload } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
 import { Notice } from "@/app/components/feedback/Notice";
+import {
+  validateCourseContent,
+  validateCourseStepOne,
+  validatePdfFile,
+} from "@/app/services/courseForm";
 import { createCourse } from "@/app/services/courseService";
 import { getErrorMessage } from "@/app/utils/errorMessage";
 
@@ -19,35 +24,54 @@ export default function CreateCourse() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [createdCourseId, setCreatedCourseId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
 
     const file = e.target.files[0];
-    const maxSize = 10 * 1024 * 1024;
-    const isPdf =
-      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-
-    if (!isPdf) {
-      setError("Le fichier doit etre un PDF.");
-      setSelectedFile(null);
-      return;
-    }
-
-    if (file.size > maxSize) {
-      setError("Le fichier depasse la taille maximale de 10 MB.");
+    const validationError = validatePdfFile(file);
+    if (validationError) {
+      setError(validationError);
+      setNotice(null);
       setSelectedFile(null);
       return;
     }
 
     setError(null);
+    setNotice(`Fichier selectionne: ${file.name}`);
     setSelectedFile(file);
+  };
+
+  const goToContentStep = () => {
+    const validationError = validateCourseStepOne({
+      title: courseTitle,
+      description: courseDescription,
+    });
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError(null);
+    setStep(2);
   };
 
   const handleCreateCourse = async () => {
     if (!user?.id) return;
 
+    const validationError = validateCourseContent({
+      contentText,
+      pdfFile: selectedFile,
+    });
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setError(null);
+    setNotice(null);
     setIsGenerating(true);
     try {
       const course = await createCourse({
@@ -71,6 +95,7 @@ export default function CreateCourse() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4">
         <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl p-8 text-center">
+          {notice && <Notice message={notice} tone="success" className="mb-6" />}
           <div className="mb-6 flex justify-center">
             <div className="bg-green-500 rounded-full p-6">
               <CheckCircle className="w-16 h-16 text-white" />
@@ -92,8 +117,9 @@ export default function CreateCourse() {
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(createdCode);
+                      setNotice("Code copie. Tu peux maintenant le partager aux eleves.");
                     } catch {
-                      // ignore clipboard failures
+                      setNotice(`Code du cours: ${createdCode}`);
                     }
                   }}
                   className="bg-white border-2 border-green-200 hover:border-green-300 text-green-800 px-4 py-3 rounded-xl transition-all"
@@ -144,6 +170,7 @@ export default function CreateCourse() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+        {notice && <Notice message={notice} tone="info" className="mb-4" />}
         {error && <Notice message={error} tone="error" className="mb-8" />}
 
         <div className="mb-8">
@@ -194,7 +221,10 @@ export default function CreateCourse() {
                 <input
                   type="text"
                   value={courseTitle}
-                  onChange={(e) => setCourseTitle(e.target.value)}
+                  onChange={(e) => {
+                    setCourseTitle(e.target.value);
+                    if (error) setError(null);
+                  }}
                   placeholder="Ex: Mathematiques - Algebre"
                   className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-green-500 focus:outline-none"
                 />
@@ -206,7 +236,10 @@ export default function CreateCourse() {
                 </label>
                 <textarea
                   value={courseDescription}
-                  onChange={(e) => setCourseDescription(e.target.value)}
+                  onChange={(e) => {
+                    setCourseDescription(e.target.value);
+                    if (error) setError(null);
+                  }}
                   placeholder="Decris brievement le contenu du cours..."
                   rows={4}
                   className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-green-500 focus:outline-none resize-none"
@@ -214,10 +247,10 @@ export default function CreateCourse() {
               </div>
 
               <button
-                onClick={() => setStep(2)}
-                disabled={!courseTitle || !courseDescription}
+                onClick={goToContentStep}
+                disabled={!courseTitle.trim() || !courseDescription.trim()}
                 className={`w-full py-4 px-6 rounded-xl text-xl transition-all ${
-                  courseTitle && courseDescription
+                  courseTitle.trim() && courseDescription.trim()
                     ? "bg-green-600 hover:bg-green-700 text-white"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 }`}
@@ -240,7 +273,10 @@ export default function CreateCourse() {
               </label>
               <textarea
                 value={contentText}
-                onChange={(e) => setContentText(e.target.value)}
+                onChange={(e) => {
+                  setContentText(e.target.value);
+                  if (error) setError(null);
+                }}
                 placeholder="Colle ici le contenu du cours (ou un resume). L'assistant repond uniquement a partir de ce texte."
                 rows={8}
                 className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-green-500 focus:outline-none resize-none"

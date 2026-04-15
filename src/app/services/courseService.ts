@@ -1,4 +1,5 @@
 import { supabase } from "@/app/services/supabaseClient";
+import { validateCourseDraft, validatePdfFile } from "@/app/services/courseForm";
 import { mapServiceErrorCode } from "@/app/services/serviceError";
 
 export type UserRole = "student" | "teacher";
@@ -151,14 +152,23 @@ export async function createCourse(params: {
   pdfFile?: File | null;
 }): Promise<CourseRow> {
   const { teacherId, title, description, contentText, pdfFile } = params;
+  const cleanedTitle = title.trim();
+  const cleanedDescription = description.trim();
   const cleanedContent = contentText.trim();
+  const validationError = validateCourseDraft({
+    title: cleanedTitle,
+    description: cleanedDescription,
+    contentText: cleanedContent,
+    pdfFile,
+  });
+  if (validationError) throw new Error(validationError);
 
   const { data: inserted, error: insertError } = await supabase
     .from("courses")
     .insert({
       teacher_id: teacherId,
-      title: title.trim(),
-      description: description.trim(),
+      title: cleanedTitle,
+      description: cleanedDescription,
       content_text: cleanedContent ? cleanedContent : null,
     })
     .select(
@@ -171,13 +181,8 @@ export async function createCourse(params: {
 
   if (!pdfFile) return course;
 
-  const maxSize = 10 * 1024 * 1024;
-  const isPdf =
-    pdfFile.type === "application/pdf" || pdfFile.name.toLowerCase().endsWith(".pdf");
-  if (!isPdf) throw new Error("Le fichier doit etre un PDF.");
-  if (pdfFile.size > maxSize) {
-    throw new Error("Le fichier depasse la taille maximale de 10 MB.");
-  }
+  const pdfError = validatePdfFile(pdfFile);
+  if (pdfError) throw new Error(pdfError);
 
   const safeName = pdfFile.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
   const objectPath = `courses/${course.id}/${Date.now()}_${safeName}`;
@@ -200,7 +205,9 @@ export async function createCourse(params: {
     )
     .single();
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    throw new Error("Le PDF a ete charge, mais le cours n'a pas pu etre mis a jour.");
+  }
   return updated as unknown as CourseRow;
 }
 
@@ -212,7 +219,7 @@ export async function getSignedCoursePdfUrl(params: {
   const { data, error } = await supabase.storage
     .from("course_pdfs")
     .createSignedUrl(pdfPath, expiresInSeconds);
-  if (error) throw error;
+  if (error) throw new Error("Impossible d'ouvrir le PDF pour le moment.");
   if (!data?.signedUrl) throw new Error("URL PDF indisponible");
   return data.signedUrl;
 }

@@ -24,6 +24,7 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [enrollments, setEnrollments] = useState<EnrollmentItem[]>([]);
 
   const displayName = useMemo(() => {
@@ -53,10 +54,12 @@ export default function StudentDashboard() {
     if (!courseCode.trim()) return;
 
     setError(null);
+    setNotice(null);
     setEnrolling(true);
     try {
       const courseId = await enrollWithCode(courseCode);
       setCourseCode("");
+      setNotice("Cours ajoute. Tu peux maintenant commencer.");
       await refresh();
       navigate(`/course/${courseId}`);
     } catch (err) {
@@ -121,7 +124,10 @@ export default function StudentDashboard() {
                 <input
                   type="text"
                   value={courseCode}
-                  onChange={(e) => setCourseCode(e.target.value)}
+                  onChange={(e) => {
+                    setCourseCode(e.target.value.toUpperCase());
+                    if (error) setError(null);
+                  }}
                   placeholder="Ex: A1B2C3D4"
                   className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
                 />
@@ -140,6 +146,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
+        {notice && <Notice message={notice} tone="success" className="mb-4" />}
         {error && <Notice message={error} tone="error" className="mb-8" />}
 
         <div>

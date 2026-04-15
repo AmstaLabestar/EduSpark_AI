@@ -35,6 +35,20 @@ export default function ChatTutor() {
     await send(toSend);
   };
 
+  if (!courseId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <StateCard
+          title="Cours manquant"
+          description="Impossible d'ouvrir cette discussion sans identifiant de cours."
+        />
+      </div>
+    );
+  }
+
+  const hasOnlyWelcomeMessage =
+    !loading && messages.length === 1 && messages[0]?.id === "welcome";
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white shadow-sm">
@@ -64,6 +78,9 @@ export default function ChatTutor() {
         <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
           {error && <Notice message={error} tone="error" />}
           {loading && <StateCard description="Chargement de la conversation..." />}
+          {hasOnlyWelcomeMessage && (
+            <StateCard description="Aucune question pour le moment. Ecris ton premier message pour commencer." />
+          )}
           {messages.map((message) => (
             <div
               key={message.id}
@@ -108,12 +125,12 @@ export default function ChatTutor() {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Ecris ta question ici..."
-              disabled={loading || sending}
+              disabled={!canSend || loading || sending}
               className="flex-1 px-5 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-blue-500 focus:outline-none disabled:bg-gray-100"
             />
             <button
               type="submit"
-              disabled={!inputMessage.trim() || loading || sending}
+              disabled={!inputMessage.trim() || !canSend || loading || sending}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:hover:bg-blue-600 text-white px-8 rounded-xl transition-all flex items-center gap-2"
             >
               <Send className="w-6 h-6" />
