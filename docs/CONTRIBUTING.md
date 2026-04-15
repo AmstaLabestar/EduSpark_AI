@@ -17,6 +17,7 @@ Avant un commit ou un push:
 
 ```bash
 npm run typecheck
+npm run test
 npm run build
 ```
 
@@ -33,3 +34,4 @@ npm run build
 - la placer dans `supabase/migrations`
 - expliquer son objectif dans le commit
 - verifier l'impact sur les droits d'acces
+- mettre a jour `docs/DATABASE.md` si le comportement visible ou les regles changent

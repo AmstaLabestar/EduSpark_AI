@@ -16,7 +16,7 @@ export default function Home() {
         <h1 className="text-4xl md:text-5xl mb-4 text-gray-900">EduLearn BF</h1>
 
         <p className="text-xl md:text-2xl text-gray-700 mb-12 leading-relaxed">
-          Apprends et comprends tes cours avec ton assistant pedagogique
+          Apprends, revise et comprends tes cours avec un accompagnement clair
         </p>
 
         <div className="space-y-4 max-w-md mx-auto">
@@ -25,7 +25,7 @@ export default function Home() {
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 px-8 rounded-2xl text-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
           >
             <BookOpen className="w-7 h-7" />
-            <span>Eleve</span>
+            <span>Je suis eleve</span>
           </button>
 
           <button
@@ -33,7 +33,7 @@ export default function Home() {
             className="w-full bg-green-600 hover:bg-green-700 text-white py-6 px-8 rounded-2xl text-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
           >
             <GraduationCap className="w-7 h-7" />
-            <span>Enseignant</span>
+            <span>Je suis enseignant</span>
           </button>
         </div>
       </div>
