@@ -289,8 +289,6 @@ insert into storage.buckets (id, name, public)
 values ('course_pdfs', 'course_pdfs', false)
 on conflict (id) do nothing;
 
-alter table storage.objects enable row level security;
-
 drop policy if exists "Teachers upload course PDFs" on storage.objects;
 create policy "Teachers upload course PDFs"
 on storage.objects
