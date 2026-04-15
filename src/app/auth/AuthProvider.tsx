@@ -66,15 +66,6 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
       );
 
       const queryPromise = (async () => {
-        const { data: directData, error: directError } = await supabase
-          .from("profiles")
-          .select("id, full_name, role")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (directError) throw directError;
-        if (directData) return directData;
-
         const { data: rpcData, error: rpcError } = await supabase
           .rpc("get_my_profile");
 
