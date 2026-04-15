@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate, useLocation } from "react-router";
 import { useAuth } from "@/app/auth/AuthProvider";
 import type { UserRole } from "@/app/auth/authTypes";
+import { StateCard } from "@/app/components/feedback/StateCard";
 
 export function ProtectedRoute({
   children,
@@ -16,9 +17,7 @@ export function ProtectedRoute({
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-md p-6 text-center">
-          <p className="text-lg text-gray-800">Chargement...</p>
-        </div>
+        <StateCard description="Chargement..." className="text-center" />
       </div>
     );
   }
@@ -34,13 +33,11 @@ export function ProtectedRoute({
   if (!profile) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-md p-6 text-center max-w-md">
-          <p className="text-lg text-gray-900 mb-2">Profil introuvable</p>
-          <p className="text-gray-600">
-            Ton compte existe, mais le profil n&apos;est pas disponible. Essaie de
-            te reconnecter.
-          </p>
-        </div>
+        <StateCard
+          title="Profil introuvable"
+          description="Ton compte existe, mais le profil n'est pas disponible. Essaie de te reconnecter."
+          className="text-center max-w-md"
+        />
       </div>
     );
   }

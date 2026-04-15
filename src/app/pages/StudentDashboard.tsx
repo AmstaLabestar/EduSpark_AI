@@ -9,7 +9,10 @@ import {
   User,
 } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
+import { Notice } from "@/app/components/feedback/Notice";
+import { PageSectionState } from "@/app/components/feedback/PageSectionState";
 import { enrollWithCode, listMyEnrollments } from "@/app/services/courseService";
+import { getErrorMessage } from "@/app/utils/errorMessage";
 
 type EnrollmentItem = Awaited<ReturnType<typeof listMyEnrollments>>[number];
 
@@ -35,7 +38,7 @@ export default function StudentDashboard() {
       const rows = await listMyEnrollments();
       setEnrollments(rows);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -57,7 +60,7 @@ export default function StudentDashboard() {
       await refresh();
       navigate(`/course/${courseId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     } finally {
       setEnrolling(false);
     }
@@ -68,7 +71,7 @@ export default function StudentDashboard() {
       await signOut();
       navigate("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     }
   };
 
@@ -137,23 +140,15 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {error && (
-          <div className="mb-8 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-gray-900">
-            {error}
-          </div>
-        )}
+        {error && <Notice message={error} tone="error" className="mb-8" />}
 
         <div>
           <h2 className="text-2xl mb-6 text-gray-900">Mes cours</h2>
 
           {loading ? (
-            <div className="bg-white rounded-2xl shadow-md p-6 text-gray-700">
-              Chargement...
-            </div>
+            <PageSectionState description="Chargement..." />
           ) : enrollments.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-md p-6 text-gray-700">
-              Aucun cours pour le moment. Ajoute un cours avec un code.
-            </div>
+            <PageSectionState description="Aucun cours pour le moment. Ajoute un cours avec un code." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {enrollments.map((enrollment) => {

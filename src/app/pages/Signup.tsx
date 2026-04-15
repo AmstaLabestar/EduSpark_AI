@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, GraduationCap, Lock, Mail, User } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
 import type { UserRole } from "@/app/auth/authTypes";
+import { Notice } from "@/app/components/feedback/Notice";
+import { getErrorMessage } from "@/app/utils/errorMessage";
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
@@ -21,20 +23,20 @@ export default function Signup() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const theme = role === "teacher"
-    ? {
-      backLink: "text-green-600 hover:text-green-700",
-      logoBg: "bg-green-600",
-      focusBorder: "focus:border-green-500",
-      submitBtn:
-        "bg-green-600 hover:bg-green-700 disabled:hover:bg-green-600",
-    }
-    : {
-      backLink: "text-blue-600 hover:text-blue-700",
-      logoBg: "bg-blue-600",
-      focusBorder: "focus:border-blue-500",
-      submitBtn: "bg-blue-600 hover:bg-blue-700 disabled:hover:bg-blue-600",
-    };
+  const theme =
+    role === "teacher"
+      ? {
+          backLink: "text-green-600 hover:text-green-700",
+          logoBg: "bg-green-600",
+          focusBorder: "focus:border-green-500",
+          submitBtn: "bg-green-600 hover:bg-green-700 disabled:hover:bg-green-600",
+        }
+      : {
+          backLink: "text-blue-600 hover:text-blue-700",
+          logoBg: "bg-blue-600",
+          focusBorder: "focus:border-blue-500",
+          submitBtn: "bg-blue-600 hover:bg-blue-700 disabled:hover:bg-blue-600",
+        };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -57,7 +59,7 @@ export default function Signup() {
 
       navigate("/app");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Erreur inconnue");
+      setMessage(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -76,17 +78,12 @@ export default function Signup() {
 
         <div className="bg-white rounded-3xl shadow-xl p-8">
           <div className="flex justify-center mb-6">
-            <div
-              className={`${theme.logoBg} rounded-2xl p-4`}
-              aria-hidden="true"
-            >
+            <div className={`${theme.logoBg} rounded-2xl p-4`} aria-hidden="true">
               <GraduationCap className="w-12 h-12 text-white" />
             </div>
           </div>
 
-          <h2 className="text-3xl text-center mb-2 text-gray-900">
-            Creer un compte
-          </h2>
+          <h2 className="text-3xl text-center mb-2 text-gray-900">Creer un compte</h2>
           <p className="text-center text-gray-600 mb-6">
             {role === "student" ? "Espace Eleve" : "Espace Enseignant"}
           </p>
@@ -116,17 +113,11 @@ export default function Signup() {
             </button>
           </div>
 
-          {message && (
-            <div className="mb-6 rounded-2xl border-2 border-yellow-300 bg-yellow-50 p-4 text-gray-900">
-              {message}
-            </div>
-          )}
+          {message && <Notice message={message} tone="warning" className="mb-6" />}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-gray-700 mb-2 text-lg">
-                Nom complet
-              </label>
+              <label className="block text-gray-700 mb-2 text-lg">Nom complet</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -157,9 +148,7 @@ export default function Signup() {
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-2 text-lg">
-                Mot de passe
-              </label>
+              <label className="block text-gray-700 mb-2 text-lg">Mot de passe</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -167,7 +156,7 @@ export default function Signup() {
                   onChange={(e) => setPassword(e.target.value)}
                   type="password"
                   className={`w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl text-lg ${theme.focusBorder} focus:outline-none`}
-                  placeholder="••••••••"
+                  placeholder="Minimum 6 caracteres"
                   autoComplete="new-password"
                   minLength={6}
                   required

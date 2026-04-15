@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, CheckCircle, Trophy, XCircle } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
+import { Notice } from "@/app/components/feedback/Notice";
+import { StateCard } from "@/app/components/feedback/StateCard";
 import {
   getLatestAssignment,
   type AssignmentQuestion,
 } from "@/app/services/assignmentService";
 import { setProgress } from "@/app/services/courseService";
+import { getErrorMessage } from "@/app/utils/errorMessage";
 
 type QuizQuestion = {
   id: string;
@@ -81,7 +84,7 @@ export default function Exercises() {
         resetQuiz();
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Erreur inconnue");
+          setError(getErrorMessage(err));
           setTitle("Exercices");
           setQuestions([]);
           setAssignmentAvailable(false);
@@ -128,9 +131,7 @@ export default function Exercises() {
   if (!courseId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-md p-6 text-gray-900">
-          Identifiant du cours manquant.
-        </div>
+        <StateCard description="Identifiant du cours manquant." />
       </div>
     );
   }
@@ -138,9 +139,7 @@ export default function Exercises() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-md p-6 text-gray-700">
-          Chargement des exercices...
-        </div>
+        <StateCard description="Chargement des exercices..." />
       </div>
     );
   }
@@ -162,11 +161,7 @@ export default function Exercises() {
         </header>
 
         <main className="max-w-4xl mx-auto px-4 py-8">
-          {error && (
-            <div className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-gray-900">
-              {error}
-            </div>
-          )}
+          {error && <Notice message={error} tone="error" className="mb-6" />}
           <div className="bg-white rounded-2xl shadow-md p-8 text-gray-800">
             <h2 className="text-2xl mb-3 text-gray-900">Aucun exercice disponible</h2>
             <p className="text-lg text-gray-700 mb-6">
@@ -260,11 +255,7 @@ export default function Exercises() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {error && (
-          <div className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-gray-900">
-            {error}
-          </div>
-        )}
+        {error && <Notice message={error} tone="error" className="mb-6" />}
 
         {question && (
           <div className="bg-white rounded-2xl shadow-md p-8">

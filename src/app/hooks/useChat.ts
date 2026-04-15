@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/app/services/supabaseClient";
 import { askCourseAi } from "@/app/services/aiService";
+import { getErrorMessage } from "@/app/utils/errorMessage";
 
 export type ChatMessage = {
   id: string;
@@ -74,7 +75,7 @@ export function useChat(courseId?: string, userId?: string) {
 
       setMessages(historyMessages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -123,7 +124,7 @@ export function useChat(courseId?: string, userId?: string) {
         await askCourseAi({ courseId, question: trimmed });
         await loadHistory();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Erreur inconnue";
+        const msg = getErrorMessage(err);
         setError(msg);
         setMessages((prev) =>
           prev.map((m) =>

@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, GraduationCap, Lock, Mail } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
+import { Notice } from "@/app/components/feedback/Notice";
+import { getErrorMessage } from "@/app/utils/errorMessage";
 
 export default function Login() {
   const [searchParams] = useSearchParams();
@@ -36,7 +38,7 @@ export default function Login() {
       await signIn(email, password);
       navigate(next ? decodeURIComponent(next) : "/app");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Erreur inconnue");
+      setMessage(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -69,11 +71,7 @@ export default function Login() {
             Espace {userType === "student" ? "Eleve" : "Enseignant"}
           </p>
 
-          {message && (
-            <div className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-gray-900">
-              {message}
-            </div>
-          )}
+          {message && <Notice message={message} tone="error" className="mb-6" />}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
