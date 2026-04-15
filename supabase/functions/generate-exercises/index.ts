@@ -14,6 +14,12 @@ type GenerateBody = {
   count?: number;
 };
 
+type ErrorShape = {
+  code: string;
+  status: number;
+  details?: string;
+};
+
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
     ...init,
@@ -31,6 +37,42 @@ function stripCodeFences(text: string): string {
     return trimmed.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "").trim();
   }
   return trimmed;
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function errorShape(code: string, status: number, details?: string): ErrorShape {
+  return details ? { code, status, details } : { code, status };
+}
+
+function knownError(error: unknown): ErrorShape {
+  const message = toErrorMessage(error);
+
+  switch (message) {
+    case "INVALID_COURSE_ID":
+      return errorShape(message, 400);
+    case "EXERCISE_SERVICE_REQUEST_FAILED":
+    case "EXERCISE_SERVICE_EMPTY_RESPONSE":
+    case "INVALID_ASSIGNMENT_JSON":
+    case "INVALID_ASSIGNMENT_TITLE":
+    case "INVALID_ASSIGNMENT_QUESTIONS":
+    case "INVALID_QUESTION":
+    case "ONLY_MCQ_SUPPORTED":
+    case "INVALID_QUESTION_TEXT":
+    case "INVALID_OPTIONS":
+    case "INVALID_CORRECT_INDEX":
+      return errorShape(message, 502);
+    default:
+      return errorShape("UNHANDLED", 500, message);
+  }
 }
 
 async function callExerciseGenerationService(params: {
@@ -240,7 +282,13 @@ Deno.serve(async (req: Request) => {
       prompt: fullPrompt,
     });
 
-    const parsed = JSON.parse(stripCodeFences(raw));
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFences(raw));
+    } catch {
+      throw new Error("INVALID_ASSIGNMENT_JSON");
+    }
+
     const assignment = validateAssignment(parsed);
 
     const { data: inserted, error: insertError } = await supabase
@@ -267,9 +315,12 @@ Deno.serve(async (req: Request) => {
       questions: assignment.questions,
     });
   } catch (err) {
+    const handled = knownError(err);
     return jsonResponse(
-      { error: "UNHANDLED", details: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
+      handled.details
+        ? { error: handled.code, details: handled.details }
+        : { error: handled.code },
+      { status: handled.status },
     );
   }
 });

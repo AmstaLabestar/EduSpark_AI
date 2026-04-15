@@ -14,6 +14,12 @@ type AskAiBody = {
   question: string;
 };
 
+type ErrorShape = {
+  code: string;
+  status: number;
+  details?: string;
+};
+
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
     ...init,
@@ -32,6 +38,26 @@ function toErrorMessage(error: unknown): string {
     return JSON.stringify(error);
   } catch {
     return "Unknown error";
+  }
+}
+
+function errorShape(code: string, status: number, details?: string): ErrorShape {
+  return details ? { code, status, details } : { code, status };
+}
+
+function knownError(error: unknown): ErrorShape {
+  const message = toErrorMessage(error);
+
+  switch (message) {
+    case "INVALID_JSON":
+    case "INVALID_COURSE_ID":
+    case "INVALID_QUESTION":
+      return errorShape(message, 400);
+    case "ANSWER_SERVICE_REQUEST_FAILED":
+    case "ANSWER_SERVICE_EMPTY_RESPONSE":
+      return errorShape(message, 502);
+    default:
+      return errorShape("UNHANDLED", 500, message);
   }
 }
 
@@ -254,9 +280,12 @@ Deno.serve(async (req: Request) => {
 
     return jsonResponse({ answer, questionId: inserted.id });
   } catch (error) {
+    const handled = knownError(error);
     return jsonResponse(
-      { error: "UNHANDLED", details: toErrorMessage(error) },
-      { status: 500 },
+      handled.details
+        ? { error: handled.code, details: handled.details }
+        : { error: handled.code },
+      { status: handled.status },
     );
   }
 });
