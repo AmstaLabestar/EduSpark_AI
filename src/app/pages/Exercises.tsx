@@ -48,6 +48,7 @@ export default function Exercises() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [score, setScore] = useState(0);
   const [showResults, setShowResults] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const question = useMemo(() => questions[currentQuestion], [questions, currentQuestion]);
 
@@ -58,6 +59,7 @@ export default function Exercises() {
     setIsCorrect(false);
     setScore(0);
     setShowResults(false);
+    setNotice(null);
   };
 
   useEffect(() => {
@@ -122,8 +124,9 @@ export default function Exercises() {
       try {
         const percentage = Math.round((score / questions.length) * 100);
         await setProgress({ courseId, studentId: user.id, progressPct: percentage });
+        setNotice("Progression enregistree.");
       } catch {
-        // ignore progress update failure
+        setNotice("Resultat affiche, mais la progression n'a pas pu etre enregistree.");
       }
     }
   };
@@ -166,6 +169,9 @@ export default function Exercises() {
             <h2 className="text-2xl mb-3 text-gray-900">Aucun exercice disponible</h2>
             <p className="text-lg text-gray-700 mb-6">
               Les exercices apparaissent ici une fois prepares par l'enseignant.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              Reviens plus tard ou contacte l'enseignant si ce cours doit deja en contenir.
             </p>
             <button
               onClick={() => navigate(`/course/${courseId}`)}
@@ -255,6 +261,13 @@ export default function Exercises() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+        {notice && (
+          <Notice
+            message={notice}
+            tone={notice.startsWith("Progression") ? "success" : "warning"}
+            className="mb-6"
+          />
+        )}
         {error && <Notice message={error} tone="error" className="mb-6" />}
 
         {question && (
@@ -324,7 +337,7 @@ export default function Exercises() {
                         isCorrect ? "text-green-900" : "text-yellow-900"
                       }`}
                     >
-                      {isCorrect ? "Bonne reponse." : "Pas tout a fait."}
+                      {isCorrect ? "Bonne reponse." : "Pas encore."}
                     </p>
                     <p
                       className={`text-lg ${
@@ -356,7 +369,7 @@ export default function Exercises() {
                       : "bg-gray-200 text-gray-400 cursor-not-allowed"
                   }`}
                 >
-                  Verifier ma reponse
+                  Valider ma reponse
                 </button>
               ) : (
                 <button
@@ -365,7 +378,7 @@ export default function Exercises() {
                 >
                   {currentQuestion < questions.length - 1
                     ? "Question suivante"
-                    : "Voir mes resultats"}
+                    : "Voir mon resultat"}
                 </button>
               )}
             </div>
