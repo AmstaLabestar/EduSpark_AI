@@ -63,13 +63,12 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
         return profileRow as Profile | null;
       })();
 
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as {
-        data: Profile | null;
-        error: Error | null;
-      };
+      const profileRow = await Promise.race([
+        queryPromise,
+        timeoutPromise,
+      ]) as Profile | null;
 
-      if (error) throw error;
-      if (data) return data;
+      if (profileRow) return profileRow;
     } catch {}
 
     if (attempt < 3) {
@@ -92,6 +91,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(profileRow);
   }, [user?.id]);
 
+  const syncSessionState = useCallback(
+    async (nextSession: Session | null) => {
+      const nextUser = nextSession?.user ?? null;
+
+      setLoading(true);
+      setSession(nextSession);
+      setUser(nextUser);
+
+      if (!nextUser?.id) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const profileRow = await fetchProfile(nextUser.id);
+        setProfile((currentProfile) => {
+          if (profileRow) return profileRow;
+          if (currentProfile?.id === nextUser.id) return currentProfile;
+          return null;
+        });
+      } catch {
+        setProfile((currentProfile) =>
+          currentProfile?.id === nextUser.id ? currentProfile : null
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -100,32 +131,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
 
-        const nextSession = data.session ?? null;
-        const nextUser = nextSession?.user ?? null;
-
         if (!cancelled) {
-          setSession(nextSession);
-          setUser(nextUser);
-        }
-
-        if (nextUser?.id) {
-          try {
-            const profileRow = await fetchProfile(nextUser.id);
-            if (!cancelled) setProfile(profileRow);
-          } catch {
-            if (!cancelled) setProfile(null);
-          }
-        } else if (!cancelled) {
-          setProfile(null);
+          await syncSessionState(data.session ?? null);
         }
       } catch {
         if (!cancelled) {
           setSession(null);
           setUser(null);
           setProfile(null);
+          setLoading(false);
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     };
 
@@ -134,22 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, nextSession: Session | null) => {
         if (cancelled) return;
-
-        setSession(nextSession);
-        const nextUser = nextSession?.user ?? null;
-        setUser(nextUser);
-
-        if (!nextUser?.id) {
-          setProfile(null);
-          return;
-        }
-
-        try {
-          const profileRow = await fetchProfile(nextUser.id);
-          if (!cancelled) setProfile(profileRow);
-        } catch {
-          if (!cancelled) setProfile(null);
-        }
+        await syncSessionState(nextSession);
       },
     );
 
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [syncSessionState]);
 
   const value = useMemo<AuthContextValue>(() => {
     return {
@@ -166,11 +166,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile,
       loading,
       async signIn(email: string, password: string) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+
+        await syncSessionState(data.session ?? null);
       },
       async signUp({ email, password, fullName, role }: SignUpParams) {
         const { data, error } = await supabase.auth.signUp({
@@ -190,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       refreshProfile,
     };
-  }, [loading, profile, refreshProfile, session, user]);
+  }, [loading, profile, refreshProfile, session, syncSessionState, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

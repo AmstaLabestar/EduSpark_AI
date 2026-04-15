@@ -163,18 +163,11 @@ export async function createCourse(params: {
   });
   if (validationError) throw new Error(validationError);
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("courses")
-    .insert({
-      teacher_id: teacherId,
-      title: cleanedTitle,
-      description: cleanedDescription,
-      content_text: cleanedContent ? cleanedContent : null,
-    })
-    .select(
-      "id,teacher_id,title,description,content_text,pdf_path,course_code,created_at",
-    )
-    .single();
+  const { data: inserted, error: insertError } = await supabase.rpc("create_course", {
+    p_title: cleanedTitle,
+    p_description: cleanedDescription,
+    p_content_text: cleanedContent,
+  });
 
   if (insertError) throw insertError;
   const course = inserted as unknown as CourseRow;
@@ -196,14 +189,10 @@ export async function createCourse(params: {
 
   if (uploadError) throw uploadError;
 
-  const { data: updated, error: updateError } = await supabase
-    .from("courses")
-    .update({ pdf_path: objectPath })
-    .eq("id", course.id)
-    .select(
-      "id,teacher_id,title,description,content_text,pdf_path,course_code,created_at",
-    )
-    .single();
+  const { data: updated, error: updateError } = await supabase.rpc("attach_course_pdf", {
+    p_course_id: course.id,
+    p_pdf_path: objectPath,
+  });
 
   if (updateError) {
     throw new Error("Le PDF a ete charge, mais le cours n'a pas pu etre mis a jour.");
