@@ -54,6 +54,7 @@ npm run dev
 ## Scripts utiles
 
 - `npm run dev`: demarrage local
+- `npm run test`: tests automatises
 - `npm run typecheck`: verification TypeScript
 - `npm run build`: build de production
 - `npm run check`: verification complete locale
@@ -107,13 +108,15 @@ Avant un merge ou un deploiement:
 
 ```bash
 npm run typecheck
+npm run test
 npm run build
 ```
 
-La CI execute aussi ces deux verifications sur chaque push et sur chaque pull request.
+La CI execute aussi ces verifications sur chaque push et sur chaque pull request.
 
 ## Documentation complementaire
 
 - `docs/ARCHITECTURE.md`
+- `docs/DATABASE.md`
 - `docs/OPERATIONS.md`
 - `docs/CONTRIBUTING.md`
