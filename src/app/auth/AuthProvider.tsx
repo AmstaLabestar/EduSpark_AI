@@ -41,14 +41,27 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("SELECT timeout after 5s")), 5000)
+        setTimeout(() => reject(new Error("PROFILE_FETCH_TIMEOUT")), 5000)
       );
 
-      const queryPromise = supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("id", userId)
-        .maybeSingle();
+      const queryPromise = (async () => {
+        const { data: directData, error: directError } = await supabase
+          .from("profiles")
+          .select("id, full_name, role")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (directError) throw directError;
+        if (directData) return directData;
+
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc("get_my_profile");
+
+        if (rpcError) throw rpcError;
+
+        const profileRow = Array.isArray(rpcData) ? rpcData[0] ?? null : rpcData;
+        return profileRow as Profile | null;
+      })();
 
       const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as {
         data: Profile | null;
