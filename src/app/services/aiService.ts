@@ -1,4 +1,5 @@
 import { supabase } from "@/app/services/supabaseClient";
+import { toServiceError } from "@/app/services/serviceError";
 
 export type AskAiResult = {
   answer: string;
@@ -17,7 +18,12 @@ export async function askCourseAi(params: {
     body: { courseId, question: trimmed },
   });
 
-  if (error) throw error;
+  if (error) {
+    throw await toServiceError(
+      error,
+      "Impossible d'obtenir une reponse pour ce cours.",
+    );
+  }
 
   const answer = (data as { answer?: unknown })?.answer;
   const questionId = (data as { questionId?: unknown })?.questionId;

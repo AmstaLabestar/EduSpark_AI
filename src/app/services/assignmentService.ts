@@ -1,4 +1,5 @@
 import { supabase } from "@/app/services/supabaseClient";
+import { toServiceError } from "@/app/services/serviceError";
 
 export type AssignmentQuestion = {
   type: "mcq";
@@ -25,7 +26,12 @@ export async function generateExercises(params: {
     body: { courseId, count },
   });
 
-  if (error) throw error;
+  if (error) {
+    throw await toServiceError(
+      error,
+      "Impossible de preparer les exercices pour ce cours.",
+    );
+  }
 
   const assignmentId = (data as { assignmentId?: unknown })?.assignmentId;
   const title = (data as { title?: unknown })?.title;
@@ -56,4 +62,3 @@ export async function getLatestAssignment(courseId: string): Promise<AssignmentR
   if (error) throw error;
   return (data ?? null) as unknown as AssignmentRow | null;
 }
-

@@ -1,4 +1,5 @@
 import { supabase } from "@/app/services/supabaseClient";
+import { mapServiceErrorCode } from "@/app/services/serviceError";
 
 export type UserRole = "student" | "teacher";
 
@@ -34,7 +35,14 @@ export async function enrollWithCode(code: string): Promise<string> {
   const { data, error } = await supabase.rpc("enroll_with_code", {
     p_code: cleaned,
   });
-  if (error) throw error;
+  if (error) {
+    throw new Error(
+      mapServiceErrorCode(
+        error.message,
+        "Impossible de rejoindre ce cours pour le moment.",
+      ),
+    );
+  }
   return data as string;
 }
 
