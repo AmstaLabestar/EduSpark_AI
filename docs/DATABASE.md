@@ -31,13 +31,13 @@ Contient un cours cree par un enseignant.
 - `teacher_id`: proprietaire du cours
 - `title`: titre obligatoire
 - `description`: resume du cours
-- `content_text`: texte utilise pour les reponses du tuteur
+- `content_text`: texte de reference utilise pour les reponses du tuteur
 - `pdf_path`: chemin du PDF optionnel
 - `course_code`: code de partage
 
 ### `enrollments`
 
-Relie un eleve a un cours.
+Relie un eleve a un cours et stocke sa progression.
 
 - une seule ligne par couple `course_id` / `student_id`
 - `progress_pct` reste borne entre `0` et `100`
@@ -93,4 +93,4 @@ Cette fonction:
 ## Effet attendu apres migration
 
 Si un mauvais role tente une action interdite, le refus se fait directement en base.
-Cela evite de faire reposer la securite uniquement sur l'interface web.
+Cela evite de faire reposer les regles d'acces uniquement sur l'interface web.

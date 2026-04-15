@@ -12,7 +12,7 @@ Le projet est organise autour de trois briques simples:
 
 1. L'enseignant cree un compte.
 2. La base cree automatiquement son profil.
-3. Il cree un cours avec un titre, une description, un texte pedagogique et eventuellement un PDF.
+3. Il cree un cours avec un titre, une description, un texte de reference et eventuellement un PDF.
 4. Le cours recoit un code de partage.
 5. Il peut ensuite preparer des exercices pour ce cours.
 
@@ -68,7 +68,7 @@ Les politiques de securite sont definies dans les migrations SQL:
 - verifie l'utilisateur
 - charge le texte du cours
 - relit les dernieres questions du meme utilisateur pour ce cours
-- envoie la demande au service de generation
+- envoie la demande au service de reponse
 - enregistre la question et la reponse
 
 ### `generate-exercises`

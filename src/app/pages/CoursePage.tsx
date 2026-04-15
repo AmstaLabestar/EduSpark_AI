@@ -42,7 +42,7 @@ export default function CoursePage() {
         if (cancelled) return;
         if (!row) {
           setCourse(null);
-          setError("Cours introuvable (ou acces refuse).");
+          setError("Cours introuvable ou inaccessible.");
           return;
         }
         setCourse(row as CourseWithTeacher);
@@ -102,7 +102,7 @@ export default function CoursePage() {
             <div className="flex-1">
               <h1 className="text-2xl text-gray-900">{course?.title ?? "Cours"}</h1>
               <p className="text-gray-600">
-                {course?.teacher?.full_name ? `Prof: ${course.teacher.full_name}` : ""}
+                {course?.teacher?.full_name ? `Enseignant: ${course.teacher.full_name}` : ""}
               </p>
             </div>
             {profile?.role === "teacher" && course?.course_code && (
@@ -162,7 +162,7 @@ export default function CoursePage() {
                 </div>
               ) : (
                 <p className="text-gray-700 text-lg">
-                  Aucun texte disponible pour ce cours.
+                  Aucun texte n'est disponible pour ce cours pour le moment.
                 </p>
               )}
             </div>
