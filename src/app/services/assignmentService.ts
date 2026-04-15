@@ -1,4 +1,5 @@
 import { supabase } from "@/app/services/supabaseClient";
+import { getFunctionAuthHeaders } from "@/app/services/functionAuth";
 import { toServiceError } from "@/app/services/serviceError";
 
 export type AssignmentQuestion = {
@@ -22,7 +23,9 @@ export async function generateExercises(params: {
   count?: number;
 }): Promise<{ assignmentId: string; title: string; questions: AssignmentQuestion[] }> {
   const { courseId, count } = params;
+  const headers = await getFunctionAuthHeaders();
   const { data, error } = await supabase.functions.invoke("generate-exercises", {
+    headers,
     body: { courseId, count },
   });
 

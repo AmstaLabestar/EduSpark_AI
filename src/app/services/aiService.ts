@@ -1,4 +1,5 @@
 import { supabase } from "@/app/services/supabaseClient";
+import { getFunctionAuthHeaders } from "@/app/services/functionAuth";
 import { toServiceError } from "@/app/services/serviceError";
 
 export type AskAiResult = {
@@ -14,7 +15,10 @@ export async function askCourseAi(params: {
   const trimmed = question.trim();
   if (!trimmed) throw new Error("Question vide");
 
+  const headers = await getFunctionAuthHeaders();
+
   const { data, error } = await supabase.functions.invoke("ask-ai", {
+    headers,
     body: { courseId, question: trimmed },
   });
 
