@@ -2,7 +2,9 @@ import { useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle, Copy, FileText, Upload } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
+import { Notice } from "@/app/components/feedback/Notice";
 import { createCourse } from "@/app/services/courseService";
+import { getErrorMessage } from "@/app/utils/errorMessage";
 
 export default function CreateCourse() {
   const navigate = useNavigate();
@@ -59,7 +61,7 @@ export default function CreateCourse() {
       setCreatedCourseId(course.id);
       setShowSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     } finally {
       setIsGenerating(false);
     }
@@ -142,11 +144,7 @@ export default function CreateCourse() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {error && (
-          <div className="mb-8 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-gray-900">
-            {error}
-          </div>
-        )}
+        {error && <Notice message={error} tone="error" className="mb-8" />}
 
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">

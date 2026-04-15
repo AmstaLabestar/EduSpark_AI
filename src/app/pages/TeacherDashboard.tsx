@@ -12,11 +12,14 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
+import { Notice } from "@/app/components/feedback/Notice";
+import { PageSectionState } from "@/app/components/feedback/PageSectionState";
 import {
   listTeacherCourses,
   listTeacherStudents,
 } from "@/app/services/courseService";
 import { generateExercises } from "@/app/services/assignmentService";
+import { getErrorMessage } from "@/app/utils/errorMessage";
 
 type CoursesItem = Awaited<ReturnType<typeof listTeacherCourses>>[number];
 type StudentItem = Awaited<ReturnType<typeof listTeacherStudents>>[number];
@@ -51,7 +54,7 @@ export default function TeacherDashboard() {
       setCourses(courseRows);
       setStudents(studentRows);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -66,7 +69,7 @@ export default function TeacherDashboard() {
       await signOut();
       navigate("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     }
   };
 
@@ -89,7 +92,7 @@ export default function TeacherDashboard() {
       await generateExercises({ courseId, count: 5 });
       setNotice("Exercices generes. Les eleves peuvent maintenant s'entrainer dans le cours.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     } finally {
       setGeneratingFor(null);
     }
@@ -148,17 +151,9 @@ export default function TeacherDashboard() {
           </button>
         </div>
 
-        {notice && (
-          <div className="mb-6 rounded-2xl border-2 border-green-200 bg-green-50 p-5 text-gray-900">
-            {notice}
-          </div>
-        )}
+        {notice && <Notice message={notice} tone="success" className="mb-6" />}
 
-        {error && (
-          <div className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-gray-900">
-            {error}
-          </div>
-        )}
+        {error && <Notice message={error} tone="error" className="mb-6" />}
 
         <div className="mb-6 flex gap-4 border-b border-gray-200">
           <button
@@ -190,14 +185,10 @@ export default function TeacherDashboard() {
         </div>
 
         {loading ? (
-          <div className="bg-white rounded-2xl shadow-md p-6 text-gray-700">
-            Chargement...
-          </div>
+          <PageSectionState description="Chargement..." />
         ) : activeTab === "courses" ? (
           courses.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-md p-6 text-gray-700">
-              Aucun cours pour le moment. Cree ton premier cours.
-            </div>
+            <PageSectionState description="Aucun cours pour le moment. Cree ton premier cours." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => {

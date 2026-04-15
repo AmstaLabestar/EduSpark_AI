@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Bot, Send, User } from "lucide-react";
 import { useChat } from "@/app/hooks/useChat";
 import { useAuth } from "@/app/auth/AuthProvider";
+import { Notice } from "@/app/components/feedback/Notice";
+import { StateCard } from "@/app/components/feedback/StateCard";
 
 export default function ChatTutor() {
   const navigate = useNavigate();
@@ -60,16 +62,8 @@ export default function ChatTutor() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-          {error && (
-            <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-gray-900">
-              {error}
-            </div>
-          )}
-          {loading && (
-            <div className="rounded-2xl border-2 border-gray-200 bg-white p-4 text-gray-700">
-              Chargement de la conversation...
-            </div>
-          )}
+          {error && <Notice message={error} tone="error" />}
+          {loading && <StateCard description="Chargement de la conversation..." />}
           {messages.map((message) => (
             <div
               key={message.id}

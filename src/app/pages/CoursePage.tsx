@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, BookOpen, FileText, MessageCircle, PenTool } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
+import { Notice } from "@/app/components/feedback/Notice";
+import { PageSectionState } from "@/app/components/feedback/PageSectionState";
+import { StateCard } from "@/app/components/feedback/StateCard";
 import {
   getCourseById,
   getSignedCoursePdfUrl,
   type CourseRow,
 } from "@/app/services/courseService";
+import { getErrorMessage } from "@/app/utils/errorMessage";
 
 type CourseWithTeacher = CourseRow & {
   teacher: { full_name: string | null } | null;
@@ -44,7 +48,7 @@ export default function CoursePage() {
         setCourse(row as CourseWithTeacher);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Erreur inconnue");
+          setError(getErrorMessage(err));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -65,7 +69,7 @@ export default function CoursePage() {
       const signed = await getSignedCoursePdfUrl({ pdfPath: course.pdf_path });
       window.open(signed, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      setError(getErrorMessage(err));
     } finally {
       setPdfLoading(false);
     }
@@ -74,9 +78,7 @@ export default function CoursePage() {
   if (!courseId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-md p-6 text-gray-900">
-          Identifiant du cours manquant.
-        </div>
+        <StateCard description="Identifiant du cours manquant." />
       </div>
     );
   }
@@ -116,20 +118,12 @@ export default function CoursePage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {error && (
-          <div className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 p-5 text-gray-900">
-            {error}
-          </div>
-        )}
+        {error && <Notice message={error} tone="error" className="mb-6" />}
 
         {loading ? (
-          <div className="bg-white rounded-2xl shadow-md p-8 text-gray-700">
-            Chargement...
-          </div>
+          <PageSectionState description="Chargement..." />
         ) : !course ? (
-          <div className="bg-white rounded-2xl shadow-md p-8 text-gray-700">
-            Cours introuvable.
-          </div>
+          <PageSectionState description="Cours introuvable." />
         ) : (
           <>
             {course.pdf_path && (
