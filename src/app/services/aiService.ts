@@ -1,10 +1,16 @@
 import { supabase } from "@/app/services/supabaseClient";
 import { getFunctionAuthHeaders } from "@/app/services/functionAuth";
 import { toServiceError } from "@/app/services/serviceError";
+import type { AssignmentQuestion } from "@/app/services/assignmentService";
 
 export type AskAiResult = {
   answer: string;
   questionId: string;
+};
+
+export type PracticeQuiz = {
+  title: string;
+  questions: AssignmentQuestion[];
 };
 
 export async function askCourseAi(params: {
@@ -40,4 +46,43 @@ export async function askCourseAi(params: {
   }
 
   return { answer: answer.trim(), questionId };
+}
+
+/**
+ * Generates an ephemeral self-training quiz for the current course.
+ * Available to any course member (teacher or enrolled student); nothing is
+ * persisted, so it never affects the teacher's assignments or official progress.
+ */
+export async function generatePracticeQuiz(params: {
+  courseId: string;
+  count?: number;
+}): Promise<PracticeQuiz> {
+  const { courseId, count } = params;
+  const headers = await getFunctionAuthHeaders();
+
+  const { data, error } = await supabase.functions.invoke("practice-quiz", {
+    headers,
+    body: { courseId, count },
+  });
+
+  if (error) {
+    throw await toServiceError(
+      error,
+      "Impossible de generer un quiz d'entrainement pour ce cours.",
+    );
+  }
+
+  const title = (data as { title?: unknown })?.title;
+  const questions = (data as { questions?: unknown })?.questions;
+
+  if (!Array.isArray(questions) || questions.length === 0) {
+    throw new Error("Quiz d'entrainement invalide");
+  }
+
+  return {
+    title: typeof title === "string" && title.trim()
+      ? title.trim()
+      : "Quiz d'entrainement",
+    questions: questions as AssignmentQuestion[],
+  };
 }

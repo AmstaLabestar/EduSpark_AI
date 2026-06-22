@@ -1,0 +1,316 @@
+/// <reference lib="deno.ns" />
+
+// Practice quiz: generates an ephemeral self-training QCM for ANY course member
+// (teacher or enrolled student). Unlike generate-exercises, it persists nothing
+// and is not tied to a teacher assignment. Membership is enforced by RLS: a user
+// who is not a member of the course cannot read it, so the course fetch returns
+// COURSE_NOT_FOUND.
+
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+type PracticeBody = {
+  courseId: string;
+  count?: number;
+};
+
+type ErrorShape = {
+  code: string;
+  status: number;
+  details?: string;
+};
+
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders,
+      ...(init.headers ?? {}),
+    },
+  });
+}
+
+function stripCodeFences(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("```")) {
+    return trimmed.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "").trim();
+  }
+  return trimmed;
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function errorShape(code: string, status: number, details?: string): ErrorShape {
+  return details ? { code, status, details } : { code, status };
+}
+
+function knownError(error: unknown): ErrorShape {
+  const message = toErrorMessage(error);
+
+  switch (message) {
+    case "INVALID_COURSE_ID":
+      return errorShape(message, 400);
+    case "QUIZ_SERVICE_REQUEST_FAILED":
+    case "QUIZ_SERVICE_EMPTY_RESPONSE":
+    case "INVALID_QUIZ_JSON":
+    case "INVALID_QUIZ_QUESTIONS":
+    case "INVALID_QUESTION":
+    case "ONLY_MCQ_SUPPORTED":
+    case "INVALID_QUESTION_TEXT":
+    case "INVALID_OPTIONS":
+    case "INVALID_CORRECT_INDEX":
+      return errorShape(message, 502);
+    default:
+      return errorShape("UNHANDLED", 500, message);
+  }
+}
+
+async function callQuizGenerationService(params: {
+  apiKey: string;
+  prompt: string;
+}): Promise<string> {
+  const res = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": params.apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: params.prompt }],
+          },
+        ],
+        generationConfig: {
+          // Higher temperature than the teacher assignment so repeated practice
+          // runs feel fresh and cover different angles of the same course.
+          temperature: 0.8,
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json",
+        },
+      }),
+    },
+  );
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = (json as { error?: { message?: string } })?.error?.message ??
+      "QUIZ_SERVICE_REQUEST_FAILED";
+    throw new Error(msg);
+  }
+
+  const content = (json as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  })?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!content || typeof content !== "string") {
+    throw new Error("QUIZ_SERVICE_EMPTY_RESPONSE");
+  }
+
+  return content.trim();
+}
+
+function validateQuiz(payload: unknown): {
+  title: string;
+  questions: Array<{
+    type: "mcq";
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation?: string;
+  }>;
+} {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("INVALID_QUIZ_JSON");
+  }
+
+  const titleRaw = (payload as { title?: unknown }).title;
+  const questions = (payload as { questions?: unknown }).questions;
+
+  if (!Array.isArray(questions) || questions.length < 3) {
+    throw new Error("INVALID_QUIZ_QUESTIONS");
+  }
+
+  const normalized = questions.map((q) => {
+    if (!q || typeof q !== "object") throw new Error("INVALID_QUESTION");
+    const type = (q as { type?: unknown }).type;
+    const question = (q as { question?: unknown }).question;
+    const options = (q as { options?: unknown }).options;
+    const correctIndex = (q as { correctIndex?: unknown }).correctIndex;
+    const explanation = (q as { explanation?: unknown }).explanation;
+
+    if (type !== "mcq") throw new Error("ONLY_MCQ_SUPPORTED");
+    if (typeof question !== "string" || question.trim().length < 5) {
+      throw new Error("INVALID_QUESTION_TEXT");
+    }
+    if (!Array.isArray(options) || options.length < 3) {
+      throw new Error("INVALID_OPTIONS");
+    }
+    const optStrings = options.map((o) => String(o));
+    if (
+      typeof correctIndex !== "number" ||
+      !Number.isInteger(correctIndex) ||
+      correctIndex < 0 ||
+      correctIndex >= optStrings.length
+    ) {
+      throw new Error("INVALID_CORRECT_INDEX");
+    }
+
+    return {
+      type: "mcq" as const,
+      question: question.trim(),
+      options: optStrings.map((o) => o.trim()),
+      correctIndex,
+      ...(typeof explanation === "string" && explanation.trim()
+        ? { explanation: explanation.trim() }
+        : {}),
+    };
+  });
+
+  const title = typeof titleRaw === "string" && titleRaw.trim()
+    ? titleRaw.trim()
+    : "Quiz d'entrainement";
+
+  return { title, questions: normalized };
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return jsonResponse({ error: "MISSING_SUPABASE_CONFIG" }, { status: 500 });
+    }
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "MISSING_AUTH" }, { status: 401 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) {
+      return jsonResponse({ error: "INVALID_AUTH" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => null) as PracticeBody | null;
+    if (!body?.courseId || typeof body.courseId !== "string") {
+      return jsonResponse({ error: "INVALID_COURSE_ID" }, { status: 400 });
+    }
+    const requestedCount = typeof body.count === "number" ? body.count : 5;
+    const count = Math.max(3, Math.min(8, Math.round(requestedCount)));
+
+    // RLS enforces membership: a non-member cannot read the course row.
+    const { data: course, error: courseError } = await supabase
+      .from("courses")
+      .select("id,title,description,content_text")
+      .eq("id", body.courseId.trim())
+      .maybeSingle();
+
+    if (courseError) {
+      return jsonResponse(
+        { error: "COURSE_FETCH_FAILED", details: courseError.message },
+        { status: 500 },
+      );
+    }
+    if (!course) return jsonResponse({ error: "COURSE_NOT_FOUND" }, { status: 404 });
+
+    const courseText = (course.content_text ?? "").trim();
+    if (!courseText) {
+      return jsonResponse({ error: "MISSING_COURSE_TEXT" }, { status: 400 });
+    }
+
+    const generationApiKey = Deno.env.get("GOOGLE_API_KEY") ?? "";
+    if (!generationApiKey) {
+      return jsonResponse({ error: "MISSING_GOOGLE_API_KEY" }, { status: 500 });
+    }
+
+    // A seed nudges the model toward a different selection of questions on each run.
+    const seed = Math.floor(Math.random() * 100000);
+
+    const systemPrompt =
+      `Tu crees un quiz d'entrainement (QCM) pour qu'un eleve s'exerce seul sur son cours.\n` +
+      `Tu dois utiliser uniquement le CONTENU DU COURS.\n` +
+      `Tu dois repondre en JSON STRICT, sans markdown, sans texte autour.\n\n` +
+      `Format attendu:\n` +
+      `{\n` +
+      `  "title": "Quiz d'entrainement: ...",\n` +
+      `  "questions": [\n` +
+      `    {\n` +
+      `      "type": "mcq",\n` +
+      `      "question": "...",\n` +
+      `      "options": ["A", "B", "C", "D"],\n` +
+      `      "correctIndex": 0,\n` +
+      `      "explanation": "..." \n` +
+      `    }\n` +
+      `  ]\n` +
+      `}\n\n` +
+      `Contraintes:\n` +
+      `- ${count} questions.\n` +
+      `- 4 options par question.\n` +
+      `- Varie les angles et l'ordre par rapport a un quiz precedent (graine: ${seed}).\n` +
+      `- Niveau: simple, clair, bienveillant.\n` +
+      `- Donne une explication pedagogique courte pour chaque bonne reponse.\n` +
+      `- Les mauvaises options doivent etre plausibles.\n`;
+
+    const userPrompt =
+      `Titre du cours: ${course.title}\n` +
+      `Description: ${course.description ?? ""}\n\n` +
+      `CONTENU DU COURS:\n\n${courseText.slice(0, 24000)}`;
+
+    const raw = await callQuizGenerationService({
+      apiKey: generationApiKey,
+      prompt: systemPrompt + userPrompt,
+    });
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFences(raw));
+    } catch {
+      throw new Error("INVALID_QUIZ_JSON");
+    }
+
+    const quiz = validateQuiz(parsed);
+
+    return jsonResponse({
+      title: quiz.title,
+      questions: quiz.questions,
+    });
+  } catch (err) {
+    const handled = knownError(err);
+    return jsonResponse(
+      handled.details
+        ? { error: handled.code, details: handled.details }
+        : { error: handled.code },
+      { status: handled.status },
+    );
+  }
+});

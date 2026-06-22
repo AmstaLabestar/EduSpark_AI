@@ -1,13 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, CheckCircle, Trophy, XCircle } from "lucide-react";
+import {
+  CheckCircle,
+  GraduationCap,
+  Sparkles,
+  Trophy,
+  XCircle,
+} from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
 import { Notice } from "@/app/components/feedback/Notice";
 import { StateCard } from "@/app/components/feedback/StateCard";
+import { Button } from "@/app/components/ui/Button";
+import { Card } from "@/app/components/ui/Card";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { ProgressBar } from "@/app/components/ui/ProgressBar";
+import { cn } from "@/app/utils/cn";
 import {
   getLatestAssignment,
   type AssignmentQuestion,
+  type AssignmentRow,
 } from "@/app/services/assignmentService";
+import { generatePracticeQuiz } from "@/app/services/aiService";
 import { setProgress } from "@/app/services/courseService";
 import { getErrorMessage } from "@/app/utils/errorMessage";
 
@@ -19,12 +32,18 @@ type QuizQuestion = {
   explanation?: string;
 };
 
+type ActiveQuiz = {
+  title: string;
+  questions: QuizQuestion[];
+  isPractice: boolean;
+};
+
 function toQuizQuestions(
   questions: AssignmentQuestion[],
-  assignmentId: string,
+  keyPrefix: string,
 ): QuizQuestion[] {
   return questions.map((q, idx) => ({
-    id: `${assignmentId}:${idx}`,
+    id: `${keyPrefix}:${idx}`,
     question: q.question,
     options: q.options,
     correctIndex: q.correctIndex,
@@ -39,9 +58,10 @@ export default function Exercises() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [assignmentAvailable, setAssignmentAvailable] = useState(false);
-  const [title, setTitle] = useState("Exercices");
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [assignment, setAssignment] = useState<AssignmentRow | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  const [activeQuiz, setActiveQuiz] = useState<ActiveQuiz | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -50,9 +70,13 @@ export default function Exercises() {
   const [showResults, setShowResults] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const question = useMemo(() => questions[currentQuestion], [questions, currentQuestion]);
+  const questions = activeQuiz?.questions ?? [];
+  const question = useMemo(
+    () => questions[currentQuestion],
+    [questions, currentQuestion],
+  );
 
-  const resetQuiz = () => {
+  const resetSession = () => {
     setCurrentQuestion(0);
     setSelectedAnswer(null);
     setShowFeedback(false);
@@ -60,6 +84,16 @@ export default function Exercises() {
     setScore(0);
     setShowResults(false);
     setNotice(null);
+  };
+
+  const startQuiz = (quiz: ActiveQuiz) => {
+    setActiveQuiz(quiz);
+    resetSession();
+  };
+
+  const backToMenu = () => {
+    setActiveQuiz(null);
+    resetSession();
   };
 
   useEffect(() => {
@@ -70,28 +104,11 @@ export default function Exercises() {
       setError(null);
       setLoading(true);
       try {
-        const assignment = await getLatestAssignment(courseId);
+        const latest = await getLatestAssignment(courseId);
         if (cancelled) return;
-
-        if (assignment) {
-          setTitle(assignment.title);
-          setQuestions(toQuizQuestions(assignment.questions, assignment.id));
-          setAssignmentAvailable(true);
-        } else {
-          setTitle("Exercices");
-          setQuestions([]);
-          setAssignmentAvailable(false);
-        }
-
-        resetQuiz();
+        setAssignment(latest);
       } catch (err) {
-        if (!cancelled) {
-          setError(getErrorMessage(err));
-          setTitle("Exercices");
-          setQuestions([]);
-          setAssignmentAvailable(false);
-          resetQuiz();
-        }
+        if (!cancelled) setError(getErrorMessage(err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -102,6 +119,33 @@ export default function Exercises() {
       cancelled = true;
     };
   }, [courseId]);
+
+  const startAssignment = () => {
+    if (!assignment) return;
+    startQuiz({
+      title: assignment.title,
+      questions: toQuizQuestions(assignment.questions, assignment.id),
+      isPractice: false,
+    });
+  };
+
+  const startPractice = async () => {
+    if (!courseId) return;
+    setError(null);
+    setGenerating(true);
+    try {
+      const quiz = await generatePracticeQuiz({ courseId, count: 5 });
+      startQuiz({
+        title: quiz.title,
+        questions: toQuizQuestions(quiz.questions, `practice-${Date.now()}`),
+        isPractice: true,
+      });
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleAnswerSubmit = () => {
     if (selectedAnswer === null || !question) return;
@@ -120,7 +164,17 @@ export default function Exercises() {
     }
 
     setShowResults(true);
-    if (profile?.role === "student" && user?.id && courseId && questions.length > 0) {
+
+    // Only the teacher's assignment updates official progress; practice quizzes
+    // are for self-training and never write to the database.
+    if (
+      activeQuiz &&
+      !activeQuiz.isPractice &&
+      profile?.role === "student" &&
+      user?.id &&
+      courseId &&
+      questions.length > 0
+    ) {
       try {
         const percentage = Math.round((score / questions.length) * 100);
         await setProgress({ courseId, studentId: user.id, progressPct: percentage });
@@ -133,7 +187,7 @@ export default function Exercises() {
 
   if (!courseId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
         <StateCard description="Identifiant du cours manquant." />
       </div>
     );
@@ -141,69 +195,37 @@ export default function Exercises() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <StateCard description="Chargement des exercices..." />
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
+        <StateCard description="Chargement des exercices..." loading />
       </div>
     );
   }
 
-  if (!assignmentAvailable) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <button
-              onClick={() => navigate(`/course/${courseId}`)}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-3"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="text-lg">Retour au cours</span>
-            </button>
-            <h1 className="text-2xl text-gray-900">Exercices</h1>
-          </div>
-        </header>
-
-        <main className="max-w-4xl mx-auto px-4 py-8">
-          {error && <Notice message={error} tone="error" className="mb-6" />}
-          <div className="bg-white rounded-2xl shadow-md p-8 text-gray-800">
-            <h2 className="text-2xl mb-3 text-gray-900">Aucun exercice disponible</h2>
-            <p className="text-lg text-gray-700 mb-6">
-              Les exercices apparaissent ici une fois prepares par l'enseignant.
-            </p>
-            <p className="text-sm text-gray-500 mb-6">
-              Reviens plus tard ou contacte l'enseignant si ce cours doit deja en contenir.
-            </p>
-            <button
-              onClick={() => navigate(`/course/${courseId}`)}
-              className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-5 rounded-xl text-lg transition-all"
-            >
-              Retour au cours
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (showResults) {
+  // ---- Results screen ----
+  if (activeQuiz && showResults) {
     const percentage =
       questions.length === 0 ? 0 : Math.round((score / questions.length) * 100);
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4">
-        <div className="max-w-2xl w-full bg-white rounded-3xl shadow-xl p-8 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-success-50 to-white p-4">
+        <Card className="w-full max-w-2xl p-8 text-center animate-in fade-in zoom-in-95 duration-500">
           <div className="mb-6 flex justify-center">
-            <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full p-6">
-              <Trophy className="w-16 h-16 text-white" />
+            <div className="rounded-full bg-gradient-to-br from-accent-400 to-accent-600 p-6 shadow-accent">
+              <Trophy className="h-16 w-16 text-white" />
             </div>
           </div>
-          <h2 className="text-4xl mb-4 text-gray-900">Resultats</h2>
-          <p className="text-2xl text-gray-700 mb-6">
+          <h2 className="mb-2 text-4xl text-ink">Resultats</h2>
+          {activeQuiz.isPractice && (
+            <p className="mb-4 text-sm text-accent-600">
+              Quiz d'entrainement — ce score n'est pas enregistre.
+            </p>
+          )}
+          <p className="mb-6 text-2xl text-ink-soft">
             Score: {score}/{questions.length}
           </p>
           <div className="mb-8">
-            <div className="text-5xl mb-2 text-green-600">{percentage}%</div>
-            <p className="text-xl text-gray-600">
+            <div className="mb-2 text-5xl text-success-600">{percentage}%</div>
+            <p className="text-xl text-ink-soft">
               {percentage >= 80
                 ? "Excellent travail."
                 : percentage >= 60
@@ -212,177 +234,224 @@ export default function Exercises() {
             </p>
           </div>
           <div className="space-y-3">
-            <button
-              onClick={resetQuiz}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl text-xl transition-all"
-            >
-              Recommencer
-            </button>
-            <button
-              onClick={() => navigate(`/course/${courseId}`)}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 py-4 px-6 rounded-xl text-xl transition-all"
-            >
-              Retour au cours
-            </button>
+            {activeQuiz.isPractice ? (
+              <Button variant="accent" size="lg" fullWidth loading={generating} onClick={startPractice}>
+                {generating ? "Generation..." : "Nouveau quiz d'entrainement"}
+              </Button>
+            ) : (
+              <Button size="lg" fullWidth onClick={() => startQuiz(activeQuiz)}>
+                Recommencer
+              </Button>
+            )}
+            <Button variant="secondary" size="lg" fullWidth onClick={backToMenu}>
+              Retour aux exercices
+            </Button>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <button
-            onClick={() => navigate(`/course/${courseId}`)}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-3"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-lg">Retour au cours</span>
-          </button>
-
+  // ---- Quiz runner ----
+  if (activeQuiz) {
+    return (
+      <div className="min-h-screen bg-canvas">
+        <PageHeader onBack={backToMenu} backLabel="Retour aux exercices">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl text-gray-900">{title}</h1>
-            <span className="text-gray-600">
+            <h1 className="flex items-center gap-2 text-2xl text-ink">
+              {activeQuiz.isPractice && <Sparkles className="h-6 w-6 text-accent-500" />}
+              {activeQuiz.title}
+            </h1>
+            <span className="text-ink-soft">
               {currentQuestion + 1} / {questions.length}
             </span>
           </div>
-
-          <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all"
-              style={{
-                width: `${((currentQuestion + 1) / questions.length) * 100}%`,
-              }}
-            />
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {notice && (
-          <Notice
-            message={notice}
-            tone={notice.startsWith("Progression") ? "success" : "warning"}
-            className="mb-6"
+          <ProgressBar
+            value={((currentQuestion + 1) / questions.length) * 100}
+            tone={activeQuiz.isPractice ? "accent" : "brand"}
+            className="mt-4"
           />
-        )}
-        {error && <Notice message={error} tone="error" className="mb-6" />}
+        </PageHeader>
 
-        {question && (
-          <div className="bg-white rounded-2xl shadow-md p-8">
-            <h2 className="text-2xl mb-8 text-gray-900 leading-relaxed">
-              {question.question}
-            </h2>
+        <main className="mx-auto max-w-4xl px-4 py-8">
+          {notice && (
+            <Notice
+              message={notice}
+              tone={notice.startsWith("Progression") ? "success" : "warning"}
+              className="mb-6"
+            />
+          )}
+          {error && <Notice message={error} tone="error" className="mb-6" />}
 
-            <div className="space-y-4">
-              {question.options.map((option, index) => (
-                <button
-                  key={index}
-                  onClick={() => !showFeedback && setSelectedAnswer(index)}
-                  disabled={showFeedback}
-                  className={`w-full text-left p-5 rounded-xl text-lg border-2 transition-all ${
-                    selectedAnswer === index
-                      ? showFeedback
-                        ? isCorrect
-                          ? "border-green-500 bg-green-50"
-                          : "border-red-500 bg-red-50"
-                        : "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300 bg-white"
-                  } ${showFeedback ? "cursor-not-allowed" : "cursor-pointer"}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${
-                        selectedAnswer === index
-                          ? showFeedback
-                            ? isCorrect
-                              ? "border-green-500 bg-green-500"
-                              : "border-red-500 bg-red-500"
-                            : "border-blue-500 bg-blue-500"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {selectedAnswer === index && showFeedback &&
-                        (isCorrect ? (
-                          <CheckCircle className="w-5 h-5 text-white" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-white" />
-                        ))}
-                    </div>
-                    <span className="flex-1">{option}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+          {question && (
+            <Card className="p-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <h2 className="mb-8 text-2xl leading-relaxed text-ink">{question.question}</h2>
 
-            {showFeedback && (
-              <div
-                className={`mt-6 p-5 rounded-xl ${
-                  isCorrect
-                    ? "bg-green-50 border-2 border-green-500"
-                    : "bg-yellow-50 border-2 border-yellow-500"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {isCorrect ? (
-                    <CheckCircle className="w-7 h-7 text-green-600 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="w-7 h-7 text-yellow-600 flex-shrink-0" />
-                  )}
-                  <div>
-                    <p
-                      className={`text-xl mb-2 ${
-                        isCorrect ? "text-green-900" : "text-yellow-900"
-                      }`}
-                    >
-                      {isCorrect ? "Bonne reponse." : "Pas encore."}
-                    </p>
-                    <p
-                      className={`text-lg ${
-                        isCorrect ? "text-green-800" : "text-yellow-800"
-                      }`}
-                    >
-                      {isCorrect
-                        ? "Tu as bien compris. Continue."
-                        : "Relis le cours et reessaie."}
-                    </p>
-                    {question.explanation && (
-                      <p className="text-lg text-gray-800 mt-3 whitespace-pre-line">
-                        {question.explanation}
-                      </p>
+              <div className="space-y-4">
+                {question.options.map((option, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => !showFeedback && setSelectedAnswer(index)}
+                    disabled={showFeedback}
+                    className={cn(
+                      "w-full rounded-xl border-2 p-5 text-left text-lg transition-all",
+                      selectedAnswer === index
+                        ? showFeedback
+                          ? isCorrect
+                            ? "border-success-500 bg-success-50"
+                            : "border-red-400 bg-red-50"
+                          : "border-brand-500 bg-brand-50"
+                        : "border-slate-200 bg-white hover:border-slate-300",
+                      showFeedback ? "cursor-not-allowed" : "cursor-pointer",
                     )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-full border-2",
+                          selectedAnswer === index
+                            ? showFeedback
+                              ? isCorrect
+                                ? "border-success-500 bg-success-500"
+                                : "border-red-400 bg-red-400"
+                              : "border-brand-500 bg-brand-500"
+                            : "border-slate-300",
+                        )}
+                      >
+                        {selectedAnswer === index && showFeedback &&
+                          (isCorrect ? (
+                            <CheckCircle className="h-5 w-5 text-white" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-white" />
+                          ))}
+                      </div>
+                      <span className="flex-1">{option}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {showFeedback && (
+                <div
+                  className={cn(
+                    "mt-6 rounded-xl border-2 p-5 animate-in fade-in slide-in-from-bottom-1 duration-300",
+                    isCorrect
+                      ? "border-success-500 bg-success-50"
+                      : "border-accent-400 bg-accent-50",
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    {isCorrect ? (
+                      <CheckCircle className="h-7 w-7 flex-shrink-0 text-success-600" />
+                    ) : (
+                      <XCircle className="h-7 w-7 flex-shrink-0 text-accent-600" />
+                    )}
+                    <div>
+                      <p className={cn("mb-2 text-xl", isCorrect ? "text-success-700" : "text-accent-600")}>
+                        {isCorrect ? "Bonne reponse." : "Pas encore."}
+                      </p>
+                      <p className={cn("text-lg", isCorrect ? "text-success-700" : "text-accent-600")}>
+                        {isCorrect
+                          ? "Tu as bien compris. Continue."
+                          : "Relis le cours et reessaie."}
+                      </p>
+                      {question.explanation && (
+                        <p className="mt-3 whitespace-pre-line text-lg text-ink-soft">
+                          {question.explanation}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            <div className="mt-8">
-              {!showFeedback ? (
-                <button
-                  onClick={handleAnswerSubmit}
-                  disabled={selectedAnswer === null}
-                  className={`w-full py-4 px-6 rounded-xl text-xl transition-all ${
-                    selectedAnswer !== null
-                      ? "bg-blue-600 hover:bg-blue-700 text-white"
-                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  }`}
-                >
-                  Valider ma reponse
-                </button>
-              ) : (
-                <button
-                  onClick={handleNextQuestion}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-xl text-xl transition-all"
-                >
-                  {currentQuestion < questions.length - 1
-                    ? "Question suivante"
-                    : "Voir mon resultat"}
-                </button>
               )}
+
+              <div className="mt-8">
+                {!showFeedback ? (
+                  <Button
+                    size="lg"
+                    fullWidth
+                    disabled={selectedAnswer === null}
+                    onClick={handleAnswerSubmit}
+                  >
+                    Valider ma reponse
+                  </Button>
+                ) : (
+                  <Button variant="success" size="lg" fullWidth onClick={handleNextQuestion}>
+                    {currentQuestion < questions.length - 1
+                      ? "Question suivante"
+                      : "Voir mon resultat"}
+                  </Button>
+                )}
+              </div>
+            </Card>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  // ---- Landing: choose a quiz source ----
+  const canPractice = profile?.role !== "teacher";
+
+  return (
+    <div className="min-h-screen bg-canvas">
+      <PageHeader onBack={() => navigate(`/course/${courseId}`)} backLabel="Retour au cours">
+        <h1 className="text-2xl text-ink">Exercices</h1>
+      </PageHeader>
+
+      <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
+        {error && <Notice message={error} tone="error" />}
+
+        {/* Teacher's assignment */}
+        <Card className="animate-in fade-in slide-in-from-bottom-2 duration-400">
+          <div className="mb-2 flex items-start gap-3">
+            <div className="rounded-xl bg-brand-100 p-2">
+              <GraduationCap className="h-6 w-6 text-brand-700" />
+            </div>
+            <div>
+              <h2 className="text-xl text-ink">Devoir de l'enseignant</h2>
+              <p className="text-sm text-ink-soft">
+                Le quiz prepare par ton enseignant. Ton score met a jour ta progression.
+              </p>
             </div>
           </div>
+
+          {assignment ? (
+            <div className="mt-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-lg text-ink">{assignment.title}</div>
+                <div className="text-sm text-slate-500">{assignment.questions.length} questions</div>
+              </div>
+              <Button onClick={startAssignment}>Commencer</Button>
+            </div>
+          ) : (
+            <p className="mt-4 text-ink-soft">
+              Aucun devoir n'a encore ete prepare par l'enseignant pour ce cours.
+            </p>
+          )}
+        </Card>
+
+        {/* AI practice quiz (students) */}
+        {canPractice && (
+          <Card className="border-accent-100 animate-in fade-in slide-in-from-bottom-3 duration-500">
+            <div className="mb-2 flex items-start gap-3">
+              <div className="rounded-xl bg-accent-100 p-2">
+                <Sparkles className="h-6 w-6 text-accent-600" />
+              </div>
+              <div>
+                <h2 className="text-xl text-ink">Quiz d'entrainement IA</h2>
+                <p className="text-sm text-ink-soft">
+                  Genere ton propre quiz sur ce cours, autant de fois que tu veux.
+                  C'est pour t'exercer: ton score ici n'est pas enregistre.
+                </p>
+              </div>
+            </div>
+            <Button variant="accent" size="lg" fullWidth loading={generating} onClick={startPractice} className="mt-4">
+              {!generating && <Sparkles className="h-6 w-6" />}
+              <span>{generating ? "Generation du quiz..." : "Genere-moi un quiz"}</span>
+            </Button>
+          </Card>
         )}
       </main>
     </div>

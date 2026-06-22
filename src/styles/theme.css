@@ -1,5 +1,85 @@
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * EduLearn BF — brand design tokens (charte du memoire, Annexe II).
+ * Soft modern UI: brand blue #1A56DB, success green #0E9F6E, accent amber #FBBF24,
+ * diffuse multi-layer shadows, generous radii.
+ * Tailwind v4 generates utilities from these (bg-brand-600, shadow-soft, ...).
+ */
+@theme {
+  --color-brand-50: #eef3fe;
+  --color-brand-100: #d8e3fc;
+  --color-brand-200: #b4c8f9;
+  --color-brand-300: #87a4f3;
+  --color-brand-400: #5a7fea;
+  --color-brand-500: #3160e2;
+  --color-brand-600: #1a56db;
+  --color-brand-700: #1544af;
+  --color-brand-800: #163c8c;
+  --color-brand-900: #173470;
+
+  --color-success-50: #e8f8f1;
+  --color-success-100: #c6ecdc;
+  --color-success-200: #93dcbe;
+  --color-success-400: #1fc285;
+  --color-success-500: #12a974;
+  --color-success-600: #0e9f6e;
+  --color-success-700: #0b7d57;
+
+  --color-accent-50: #fef9e8;
+  --color-accent-100: #fdefc2;
+  --color-accent-200: #fbdf8a;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #e0a50c;
+  --color-accent-600: #c9870a;
+
+  --color-ink: #0f172a;
+  --color-ink-soft: #475569;
+  --color-surface: #ffffff;
+  --color-canvas: #f6f8fc;
+
+  /* Soft, diffuse shadows for the "soft modern" look. */
+  --shadow-soft:
+    0 1px 2px -1px rgba(16, 24, 40, 0.06),
+    0 4px 14px -4px rgba(16, 24, 40, 0.08);
+  --shadow-soft-md:
+    0 2px 6px -2px rgba(16, 24, 40, 0.08),
+    0 10px 28px -8px rgba(16, 24, 40, 0.1);
+  --shadow-soft-lg:
+    0 6px 16px -6px rgba(16, 24, 40, 0.1),
+    0 20px 48px -12px rgba(16, 24, 40, 0.14);
+  --shadow-brand:
+    0 8px 24px -8px rgba(26, 86, 219, 0.45);
+  --shadow-accent:
+    0 8px 24px -8px rgba(251, 191, 36, 0.45);
+
+  /* Entrance animations (paired with tw-animate-css utilities in pages). */
+  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-soft-pop: soft-pop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes soft-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 :root {
   --font-size: 16px;
   --background: #ffffff;
@@ -8,8 +88,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
+  --primary: #1a56db;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.95 0.0058 264.53);
   --secondary-foreground: #030213;
   --muted: #ececf0;

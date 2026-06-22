@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import {
-  ArrowRight,
-  BookOpen,
-  LogOut,
-  MessageCircle,
-  Search,
-  User,
-} from "lucide-react";
+import { ArrowRight, MessageCircle, Search } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
 import { Notice } from "@/app/components/feedback/Notice";
 import { PageSectionState } from "@/app/components/feedback/PageSectionState";
+import { AppHeader } from "@/app/components/ui/AppHeader";
+import { Button } from "@/app/components/ui/Button";
+import { Card } from "@/app/components/ui/Card";
+import { ProgressBar } from "@/app/components/ui/ProgressBar";
 import { enrollWithCode, listMyEnrollments } from "@/app/services/courseService";
 import { getErrorMessage } from "@/app/utils/errorMessage";
 
@@ -79,133 +76,101 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 rounded-xl p-2">
-              <BookOpen className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-canvas">
+      <AppHeader subtitle="Espace eleve" name={displayName} tone="brand" onLogout={handleLogout} />
+
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <h1 className="mb-2 text-3xl text-ink">Bonjour, {displayName}</h1>
+          <p className="text-xl text-ink-soft">Choisis un cours pour continuer.</p>
+        </div>
+
+        <Card className="mb-8">
+          <label htmlFor="course-code" className="mb-3 block text-lg text-ink-soft">
+            Ajouter un cours avec un code
+          </label>
+          <form onSubmit={handleEnroll} className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                id="course-code"
+                type="text"
+                value={courseCode}
+                onChange={(e) => {
+                  setCourseCode(e.target.value.toUpperCase());
+                  if (error) setError(null);
+                }}
+                placeholder="Ex: A1B2C3D4"
+                className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-12 pr-4 text-lg uppercase tracking-wide text-ink shadow-soft outline-none transition-all focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+              />
             </div>
-            <div>
-              <div className="text-xl text-gray-900">EduLearn BF</div>
-              <div className="text-sm text-gray-500">Espace eleve</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 bg-blue-50 rounded-full px-3 py-2">
-              <User className="w-5 h-5 text-blue-700" />
-              <span className="text-sm text-blue-900">{displayName}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-gray-600 hover:text-gray-900"
-              aria-label="Se deconnecter"
+            <Button
+              type="submit"
+              size="lg"
+              loading={enrolling}
+              disabled={!courseCode.trim()}
             >
-              <LogOut className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl mb-2 text-gray-900">Bonjour, {displayName}</h1>
-          <p className="text-xl text-gray-600">Choisis un cours pour continuer.</p>
-        </div>
-
-        <div className="mb-8">
-          <div className="bg-white rounded-2xl shadow-md p-6">
-            <label className="block text-lg mb-3 text-gray-700">
-              Ajouter un cours avec un code
-            </label>
-            <form onSubmit={handleEnroll} className="flex gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={courseCode}
-                  onChange={(e) => {
-                    setCourseCode(e.target.value.toUpperCase());
-                    if (error) setError(null);
-                  }}
-                  placeholder="Ex: A1B2C3D4"
-                  className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={enrolling || !courseCode.trim()}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:hover:bg-blue-600 text-white px-8 rounded-xl text-lg transition-all"
-              >
-                {enrolling ? "Ajout..." : "Ajouter"}
-              </button>
-            </form>
-            <p className="text-sm text-gray-500 mt-2">
-              Demande le code a ton professeur.
-            </p>
-          </div>
-        </div>
+              {enrolling ? "Ajout..." : "Ajouter"}
+            </Button>
+          </form>
+          <p className="mt-2 text-sm text-slate-500">Demande le code a ton professeur.</p>
+        </Card>
 
         {notice && <Notice message={notice} tone="success" className="mb-4" />}
         {error && <Notice message={error} tone="error" className="mb-8" />}
 
         <div>
-          <h2 className="text-2xl mb-6 text-gray-900">Mes cours</h2>
+          <h2 className="mb-6 text-2xl text-ink">Mes cours</h2>
 
           {loading ? (
             <PageSectionState description="Chargement..." />
           ) : enrollments.length === 0 ? (
             <PageSectionState description="Aucun cours pour le moment. Ajoute un cours avec un code." />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {enrollments.map((enrollment) => {
                 const course = enrollment.course;
                 const teacherName = course.teacher?.full_name ?? "Professeur";
 
                 return (
-                  <div
+                  <Card
                     key={enrollment.id}
-                    className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-all"
+                    padded={false}
+                    interactive
+                    className="overflow-hidden"
                   >
-                    <div className="h-24 bg-gradient-to-br from-blue-500 to-green-500 p-6 text-white">
+                    <div className="bg-gradient-to-br from-brand-500 to-success-500 p-6 text-white">
                       <h3 className="text-xl">{course.title}</h3>
-                      <p className="text-blue-50 text-sm">Par {teacherName}</p>
+                      <p className="text-sm text-white/80">Par {teacherName}</p>
                     </div>
 
                     <div className="p-6">
                       <div className="mb-4">
-                        <div className="flex justify-between mb-2">
-                          <span className="text-sm text-gray-600">Progression</span>
-                          <span className="text-sm text-blue-700">
+                        <div className="mb-2 flex justify-between">
+                          <span className="text-sm text-ink-soft">Progression</span>
+                          <span className="text-sm text-brand-700">
                             {enrollment.progress_pct}%
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all"
-                            style={{ width: `${enrollment.progress_pct}%` }}
-                          />
-                        </div>
+                        <ProgressBar value={enrollment.progress_pct} tone="brand" />
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
-                        <button
-                          onClick={() => navigate(`/course/${course.id}`)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl text-lg transition-all flex items-center justify-center gap-2"
-                        >
+                        <Button onClick={() => navigate(`/course/${course.id}`)}>
                           <span>Lire</span>
-                          <ArrowRight className="w-5 h-5" />
-                        </button>
-                        <button
+                          <ArrowRight className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="text-brand-700"
                           onClick={() => navigate(`/chat/${course.id}`)}
-                          className="bg-white border-2 border-blue-200 hover:border-blue-300 text-blue-700 py-3 px-4 rounded-xl text-lg transition-all flex items-center justify-center gap-2"
                         >
-                          <MessageCircle className="w-5 h-5" />
+                          <MessageCircle className="h-5 w-5" />
                           <span>Assistant</span>
-                        </button>
+                        </Button>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>

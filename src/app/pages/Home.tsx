@@ -1,40 +1,63 @@
 import { useNavigate } from "react-router";
-import { GraduationCap, BookOpen } from "lucide-react";
+import { BookOpen, GraduationCap, Sparkles } from "lucide-react";
+import { Button } from "@/app/components/ui/Button";
 
 export default function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full text-center">
-        <div className="mb-8 flex justify-center">
-          <div className="bg-blue-600 rounded-3xl p-6 shadow-lg">
-            <GraduationCap className="w-16 h-16 text-white" />
+    <div className="relative min-h-screen overflow-hidden bg-canvas">
+      {/* Soft brand glows in the background */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -left-24 h-80 w-80 rounded-full bg-brand-200/40 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-32 -right-24 h-80 w-80 rounded-full bg-accent-200/40 blur-3xl"
+      />
+
+      <div className="relative flex min-h-screen items-center justify-center p-4">
+        <div className="w-full max-w-2xl text-center animate-in fade-in slide-in-from-bottom-3 duration-700">
+          <div className="mb-8 flex justify-center">
+            <div className="rounded-3xl bg-brand-600 p-6 shadow-brand">
+              <GraduationCap className="h-16 w-16 text-white" />
+            </div>
           </div>
-        </div>
 
-        <h1 className="text-4xl md:text-5xl mb-4 text-gray-900">EduLearn BF</h1>
+          <h1 className="mb-4 text-4xl text-ink md:text-5xl">
+            EduLearn <span className="text-brand-600">BF</span>
+          </h1>
 
-        <p className="text-xl md:text-2xl text-gray-700 mb-12 leading-relaxed">
-          Apprends, revise et comprends tes cours avec un accompagnement clair
-        </p>
+          <p className="mx-auto mb-12 max-w-xl text-xl leading-relaxed text-ink-soft md:text-2xl">
+            Apprends, revise et comprends tes cours avec un accompagnement clair
+          </p>
 
-        <div className="space-y-4 max-w-md mx-auto">
-          <button
-            onClick={() => navigate("/login?type=student")}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 px-8 rounded-2xl text-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
-          >
-            <BookOpen className="w-7 h-7" />
-            <span>Je suis eleve</span>
-          </button>
+          <div className="mx-auto max-w-md space-y-4">
+            <Button
+              size="lg"
+              fullWidth
+              onClick={() => navigate("/login?type=student")}
+            >
+              <BookOpen className="h-6 w-6" />
+              <span>Je suis eleve</span>
+            </Button>
 
-          <button
-            onClick={() => navigate("/login?type=teacher")}
-            className="w-full bg-green-600 hover:bg-green-700 text-white py-6 px-8 rounded-2xl text-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
-          >
-            <GraduationCap className="w-7 h-7" />
-            <span>Je suis enseignant</span>
-          </button>
+            <Button
+              size="lg"
+              variant="success"
+              fullWidth
+              onClick={() => navigate("/login?type=teacher")}
+            >
+              <GraduationCap className="h-6 w-6" />
+              <span>Je suis enseignant</span>
+            </Button>
+          </div>
+
+          <p className="mt-10 inline-flex items-center gap-2 text-sm text-ink-soft">
+            <Sparkles className="h-4 w-4 text-accent-500" />
+            Tuteur IA contextualise a ton cours
+          </p>
         </div>
       </div>
     </div>

@@ -7,8 +7,8 @@ export default function AppEntry() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-6">
-        <StateCard description="Chargement..." className="text-center" />
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
+        <StateCard description="Chargement..." loading />
       </div>
     );
   }

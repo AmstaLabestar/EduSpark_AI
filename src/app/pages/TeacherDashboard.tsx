@@ -3,17 +3,22 @@ import { useNavigate } from "react-router";
 import {
   BarChart3,
   BookOpen,
-  Eye,
-  LogOut,
-  Plus,
-  Users,
-  User,
   Copy,
+  Eye,
+  Plus,
+  RefreshCw,
   Sparkles,
+  User,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/app/auth/AuthProvider";
 import { Notice } from "@/app/components/feedback/Notice";
 import { PageSectionState } from "@/app/components/feedback/PageSectionState";
+import { AppHeader } from "@/app/components/ui/AppHeader";
+import { Button } from "@/app/components/ui/Button";
+import { Card } from "@/app/components/ui/Card";
+import { ProgressBar } from "@/app/components/ui/ProgressBar";
+import { cn } from "@/app/utils/cn";
 import {
   listTeacherCourses,
   listTeacherStudents,
@@ -98,89 +103,48 @@ export default function TeacherDashboard() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-green-600 rounded-xl p-2">
-              <BookOpen className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <div className="text-xl text-gray-900">EduLearn BF</div>
-              <div className="text-sm text-gray-500">Espace enseignant</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 bg-green-50 rounded-full px-3 py-2">
-              <User className="w-5 h-5 text-green-700" />
-              <span className="text-sm text-green-900">{displayName}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-gray-600 hover:text-gray-900"
-              aria-label="Se deconnecter"
-            >
-              <LogOut className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      </header>
+  const tabClass = (tab: "courses" | "students") =>
+    cn(
+      "flex items-center gap-2 px-2 pb-4 text-lg transition-all",
+      activeTab === tab
+        ? "border-b-2 border-success-600 text-success-700"
+        : "text-ink-soft hover:text-ink",
+    );
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl mb-2 text-gray-900">Tableau de bord enseignant</h1>
-          <p className="text-xl text-gray-600">
+  return (
+    <div className="min-h-screen bg-canvas">
+      <AppHeader subtitle="Espace enseignant" name={displayName} tone="success" onLogout={handleLogout} />
+
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <h1 className="mb-2 text-3xl text-ink">Tableau de bord enseignant</h1>
+          <p className="text-xl text-ink-soft">
             Cree tes cours, partage le code, et suis la progression.
           </p>
         </div>
 
-        <div className="mb-8 flex flex-wrap gap-3 items-center">
-          <button
-            onClick={() => navigate("/create-course")}
-            className="bg-green-600 hover:bg-green-700 text-white py-4 px-8 rounded-2xl text-xl transition-all shadow-lg hover:shadow-xl flex items-center gap-3"
-          >
-            <Plus className="w-6 h-6" />
+        <div className="mb-8 flex flex-wrap items-center gap-3">
+          <Button size="lg" variant="success" onClick={() => navigate("/create-course")}>
+            <Plus className="h-6 w-6" />
             <span>Creer un nouveau cours</span>
-          </button>
-          <button
-            onClick={refresh}
-            className="bg-white border-2 border-gray-200 hover:border-gray-300 text-gray-900 py-4 px-6 rounded-2xl text-xl transition-all"
-          >
-            Actualiser
-          </button>
+          </Button>
+          <Button size="lg" variant="secondary" onClick={refresh}>
+            <RefreshCw className="h-5 w-5" />
+            <span>Actualiser</span>
+          </Button>
         </div>
 
         {notice && <Notice message={notice} tone="success" className="mb-6" />}
-
         {error && <Notice message={error} tone="error" className="mb-6" />}
 
-        <div className="mb-6 flex gap-4 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab("courses")}
-            className={`pb-4 px-2 text-lg transition-all ${
-              activeTab === "courses"
-                ? "border-b-2 border-green-600 text-green-700"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
-              <span>Mes cours</span>
-            </div>
+        <div className="mb-6 flex gap-4 border-b border-slate-200">
+          <button type="button" onClick={() => setActiveTab("courses")} className={tabClass("courses")}>
+            <BookOpen className="h-5 w-5" />
+            <span>Mes cours</span>
           </button>
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`pb-4 px-2 text-lg transition-all ${
-              activeTab === "students"
-                ? "border-b-2 border-green-600 text-green-700"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              <span>Mes eleves</span>
-            </div>
+          <button type="button" onClick={() => setActiveTab("students")} className={tabClass("students")}>
+            <Users className="h-5 w-5" />
+            <span>Mes eleves</span>
           </button>
         </div>
 
@@ -190,7 +154,7 @@ export default function TeacherDashboard() {
           courses.length === 0 ? (
             <PageSectionState description="Aucun cours pour le moment. Cree ton premier cours." />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {courses.map((course) => {
                 const enrollmentRows = course.enrollments ?? [];
                 const studentCount = enrollmentRows.length;
@@ -202,14 +166,11 @@ export default function TeacherDashboard() {
                     );
 
                 return (
-                  <div
-                    key={course.id}
-                    className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-all"
-                  >
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 text-white">
-                      <h3 className="text-xl mb-2">{course.title}</h3>
-                      <div className="flex items-center gap-2 text-green-100">
-                        <Users className="w-4 h-4" />
+                  <Card key={course.id} padded={false} interactive className="overflow-hidden">
+                    <div className="bg-gradient-to-br from-success-500 to-success-600 p-6 text-white">
+                      <h3 className="mb-2 text-xl">{course.title}</h3>
+                      <div className="flex items-center gap-2 text-white/85">
+                        <Users className="h-4 w-4" />
                         <span>{studentCount} eleves</span>
                       </div>
                     </div>
@@ -217,114 +178,86 @@ export default function TeacherDashboard() {
                     <div className="p-6">
                       <div className="mb-4 flex items-center justify-between gap-3">
                         <div>
-                          <div className="text-sm text-gray-600">Code du cours</div>
-                          <div className="text-sm text-green-700 bg-green-50 px-3 py-1 rounded-full inline-block mt-1">
+                          <div className="text-sm text-ink-soft">Code du cours</div>
+                          <div className="mt-1 inline-block rounded-full bg-success-50 px-3 py-1 font-mono text-sm text-success-700">
                             {course.course_code}
                           </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => handleCopyCode(course.course_code)}
-                          className="bg-white border-2 border-green-200 hover:border-green-300 text-green-800 px-3 py-2 rounded-xl transition-all"
+                          className="rounded-xl border border-success-200 bg-white px-3 py-2 text-success-700 transition-all hover:bg-success-50"
                           aria-label="Copier le code"
                         >
-                          <Copy className="w-5 h-5" />
+                          <Copy className="h-5 w-5" />
                         </button>
                       </div>
 
                       <div className="mb-6">
-                        <div className="flex justify-between mb-2">
-                          <span className="text-sm text-gray-600">
-                            Progression moyenne
-                          </span>
-                          <span className="text-sm text-green-700">
-                            {avgProgress}%
-                          </span>
+                        <div className="mb-2 flex justify-between">
+                          <span className="text-sm text-ink-soft">Progression moyenne</span>
+                          <span className="text-sm text-success-700">{avgProgress}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-600 h-2 rounded-full transition-all"
-                            style={{ width: `${avgProgress}%` }}
-                          />
-                        </div>
+                        <ProgressBar value={avgProgress} tone="success" />
                       </div>
 
                       <div className="space-y-2">
-                        <button
-                          onClick={() => navigate(`/course/${course.id}`)}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
-                        >
-                          <Eye className="w-5 h-5" />
+                        <Button variant="success" fullWidth onClick={() => navigate(`/course/${course.id}`)}>
+                          <Eye className="h-5 w-5" />
                           <span>Voir le cours</span>
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("students")}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
-                        >
-                          <BarChart3 className="w-5 h-5" />
+                        </Button>
+                        <Button variant="secondary" fullWidth onClick={() => setActiveTab("students")}>
+                          <BarChart3 className="h-5 w-5" />
                           <span>Voir progression</span>
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="accent"
+                          fullWidth
+                          loading={generatingFor === course.id}
                           onClick={() => handleGenerateExercises(course.id)}
-                          disabled={generatingFor === course.id}
-                          className="w-full bg-white border-2 border-purple-200 hover:border-purple-300 disabled:hover:border-purple-200 disabled:opacity-60 text-purple-800 py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
                         >
-                          <Sparkles className="w-5 h-5" />
+                          <Sparkles className="h-5 w-5" />
                           <span>
-                            {generatingFor === course.id
-                              ? "Generation..."
-                              : "Generer des exercices"}
+                            {generatingFor === course.id ? "Generation..." : "Generer des exercices"}
                           </span>
-                        </button>
+                        </Button>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>
           )
         ) : (
-          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+          <Card padded={false} className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="border-b border-slate-200 bg-slate-50">
                   <tr>
-                    <th className="px-6 py-4 text-left text-gray-700">
-                      Nom de l'eleve
-                    </th>
-                    <th className="px-6 py-4 text-left text-gray-700">Cours</th>
-                    <th className="px-6 py-4 text-left text-gray-700">
-                      Progression
-                    </th>
+                    <th className="px-6 py-4 text-left text-ink-soft">Nom de l'eleve</th>
+                    <th className="px-6 py-4 text-left text-ink-soft">Cours</th>
+                    <th className="px-6 py-4 text-left text-ink-soft">Progression</th>
                   </tr>
                 </thead>
                 <tbody>
                   {students.map((row, idx) => (
                     <tr
                       key={`${row.student.id}-${row.course.id}-${idx}`}
-                      className="border-b border-gray-100 hover:bg-gray-50"
+                      className="border-b border-slate-100 transition-colors hover:bg-slate-50"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="bg-green-100 rounded-full p-2">
-                            <User className="w-5 h-5 text-green-600" />
+                          <div className="rounded-full bg-success-100 p-2">
+                            <User className="h-5 w-5 text-success-600" />
                           </div>
-                          <span className="text-gray-900">
-                            {row.student.full_name ?? "Eleve"}
-                          </span>
+                          <span className="text-ink">{row.student.full_name ?? "Eleve"}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-700">{row.course.title}</td>
+                      <td className="px-6 py-4 text-ink-soft">{row.course.title}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-24 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-600 h-2 rounded-full"
-                              style={{ width: `${row.progress_pct}%` }}
-                            />
-                          </div>
-                          <span className="text-sm text-gray-600">
-                            {row.progress_pct}%
-                          </span>
+                          <ProgressBar value={row.progress_pct} tone="success" className="w-24" />
+                          <span className="text-sm text-ink-soft">{row.progress_pct}%</span>
                         </div>
                       </td>
                     </tr>
@@ -333,12 +266,10 @@ export default function TeacherDashboard() {
               </table>
 
               {students.length === 0 && (
-                <div className="p-6 text-gray-700">
-                  Aucun eleve inscrit pour le moment.
-                </div>
+                <div className="p-6 text-ink-soft">Aucun eleve inscrit pour le moment.</div>
               )}
             </div>
-          </div>
+          </Card>
         )}
       </main>
     </div>

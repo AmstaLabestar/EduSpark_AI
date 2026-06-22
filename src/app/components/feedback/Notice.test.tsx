@@ -14,6 +14,6 @@ describe("Notice", () => {
       <Notice message="Cours cree" tone="success" />,
     );
 
-    expect(container.firstChild).toHaveClass("bg-green-50");
+    expect(container.firstChild).toHaveClass("bg-success-50");
   });
 });

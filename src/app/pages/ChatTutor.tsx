@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Bot, Send, User } from "lucide-react";
+import { Bot, Send, Sparkles, User } from "lucide-react";
 import { useChat } from "@/app/hooks/useChat";
 import { useAuth } from "@/app/auth/AuthProvider";
 import { Notice } from "@/app/components/feedback/Notice";
 import { StateCard } from "@/app/components/feedback/StateCard";
+import { Button } from "@/app/components/ui/Button";
+import { PageHeader } from "@/app/components/ui/PageHeader";
+import { cn } from "@/app/utils/cn";
 
 export default function ChatTutor() {
   const navigate = useNavigate();
@@ -37,7 +40,7 @@ export default function ChatTutor() {
 
   if (!courseId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
         <StateCard
           title="Cours manquant"
           description="Impossible d'ouvrir cette discussion sans identifiant de cours."
@@ -50,65 +53,57 @@ export default function ChatTutor() {
     !loading && messages.length === 1 && messages[0]?.id === "welcome";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <button
-            onClick={() => navigate(`/course/${courseId}`)}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-3"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-lg">Retour au cours</span>
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-2">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl text-gray-900">Assistant du cours</h1>
-              <p className="text-gray-600 text-sm">
-                Repond uniquement a partir de ce cours
-              </p>
-            </div>
+    <div className="flex min-h-screen flex-col bg-canvas">
+      <PageHeader onBack={() => navigate(`/course/${courseId}`)} backLabel="Retour au cours">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 p-2 shadow-soft">
+            <Bot className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl text-ink">
+              Assistant du cours
+              <Sparkles className="h-4 w-4 text-accent-500" />
+            </h1>
+            <p className="text-sm text-ink-soft">Repond uniquement a partir de ce cours</p>
           </div>
         </div>
-      </header>
+      </PageHeader>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+        <div className="mx-auto max-w-4xl space-y-4 px-4 py-6">
           {error && <Notice message={error} tone="error" />}
-          {loading && <StateCard description="Chargement de la conversation..." />}
+          {loading && <StateCard description="Chargement de la conversation..." loading />}
           {hasOnlyWelcomeMessage && (
             <StateCard description="Aucune question pour le moment. Ecris ton premier message pour commencer." />
           )}
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-3 ${
-                message.sender === "user" ? "justify-end" : "justify-start"
-              }`}
+              className={cn(
+                "flex gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300",
+                message.sender === "user" ? "justify-end" : "justify-start",
+              )}
             >
               {message.sender === "ai" && (
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-full p-2 h-10 w-10 flex-shrink-0">
-                  <Bot className="w-6 h-6 text-white" />
+                <div className="h-10 w-10 flex-shrink-0 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 p-2">
+                  <Bot className="h-6 w-6 text-white" />
                 </div>
               )}
 
               <div
-                className={`max-w-lg px-5 py-3 rounded-2xl ${
+                className={cn(
+                  "max-w-lg rounded-2xl px-5 py-3",
                   message.sender === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-gray-800 shadow-md"
-                }`}
+                    ? "bg-brand-600 text-white shadow-soft"
+                    : "border border-slate-100 bg-surface text-ink shadow-soft",
+                )}
               >
-                <p className="text-lg leading-relaxed whitespace-pre-line">
-                  {message.text}
-                </p>
+                <p className="whitespace-pre-line text-lg leading-relaxed">{message.text}</p>
               </div>
 
               {message.sender === "user" && (
-                <div className="bg-blue-600 rounded-full p-2 h-10 w-10 flex-shrink-0">
-                  <User className="w-6 h-6 text-white" />
+                <div className="h-10 w-10 flex-shrink-0 rounded-full bg-brand-600 p-2">
+                  <User className="h-6 w-6 text-white" />
                 </div>
               )}
             </div>
@@ -117,8 +112,8 @@ export default function ChatTutor() {
         </div>
       </main>
 
-      <div className="bg-white border-t border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+      <div className="sticky bottom-0 border-t border-slate-100 bg-surface/80 backdrop-blur-md">
+        <div className="mx-auto max-w-4xl px-4 py-4">
           <form onSubmit={handleSendMessage} className="flex gap-3">
             <input
               type="text"
@@ -126,17 +121,19 @@ export default function ChatTutor() {
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Ecris ta question ici..."
               disabled={!canSend || loading || sending}
-              className="flex-1 px-5 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-blue-500 focus:outline-none disabled:bg-gray-100"
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-4 text-lg text-ink shadow-soft outline-none transition-all focus:border-brand-500 focus:ring-4 focus:ring-brand-100 disabled:bg-slate-100"
             />
-            <button
+            <Button
               type="submit"
-              disabled={!inputMessage.trim() || !canSend || loading || sending}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:hover:bg-blue-600 text-white px-8 rounded-xl transition-all flex items-center gap-2"
+              size="lg"
+              loading={sending}
+              disabled={!inputMessage.trim() || !canSend || loading}
+              aria-label="Envoyer"
             >
-              <Send className="w-6 h-6" />
-            </button>
+              {!sending && <Send className="h-6 w-6" />}
+            </Button>
           </form>
-          <p className="text-sm text-gray-500 mt-2 text-center">
+          <p className="mt-2 text-center text-sm text-slate-500">
             {sending ? "Je prepare une reponse..." : "Pose ta question sur le cours."}
           </p>
         </div>
