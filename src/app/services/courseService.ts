@@ -1,6 +1,7 @@
 import { supabase } from "@/app/services/supabaseClient";
 import { validateCourseDraft, validatePdfFile } from "@/app/services/courseForm";
 import { mapServiceErrorCode } from "@/app/services/serviceError";
+import { indexCourse } from "@/app/services/aiService";
 
 export type UserRole = "student" | "teacher";
 
@@ -195,6 +196,14 @@ export async function createCourse(params: {
 
   if (insertError) throw insertError;
   const course = inserted as unknown as CourseRow;
+
+  // Index the course for RAG. Best-effort: the tutor falls back to full text,
+  // so a failed/slow indexing must never block course creation.
+  try {
+    await indexCourse(course.id);
+  } catch {
+    // Non-blocking.
+  }
 
   if (!pdfFile) return course;
 

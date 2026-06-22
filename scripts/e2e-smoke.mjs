@@ -39,6 +39,25 @@ async function api(path, { method = "GET", token, body, headers = {} } = {}) {
   return { status: res.status, json };
 }
 
+async function googleEmbed(text) {
+  const key = process.env.GOOGLE_API_KEY;
+  if (!key) return null;
+  const res = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        model: "models/gemini-embedding-001",
+        content: { parts: [{ text }] },
+        outputDimensionality: 768,
+      }),
+    },
+  );
+  const json = await res.json().catch(() => ({}));
+  return json?.embedding?.values ?? null;
+}
+
 async function signup(email) {
   const res = await api("/auth/v1/signup", {
     method: "POST",
@@ -82,6 +101,16 @@ async function main() {
   log("Generation exercices IA (Gemini)", exOk, exOk ? `${gx.json.questions.length} questions, titre="${gx.json.title}"` : `HTTP ${gx.status} ${JSON.stringify(gx.json)}`);
   if (!exOk) fail();
 
+  // 3b. Index the course for RAG (teacher)
+  const ix = await api("/functions/v1/index-course", {
+    method: "POST",
+    token: teacherToken,
+    body: { courseId },
+  });
+  const ixOk = ix.status === 200 && typeof ix.json?.chunks === "number" && ix.json.chunks >= 1;
+  log("Indexation RAG du cours (chunks + embeddings)", ixOk, ixOk ? `${ix.json.chunks} chunks crees` : `HTTP ${ix.status} ${JSON.stringify(ix.json)}`);
+  if (!ixOk) fail();
+
   // 4. Student signup
   const s = await signup(studentEmail);
   const studentToken = s.json?.access_token;
@@ -98,6 +127,25 @@ async function main() {
   const enrollOk = e.status === 200 && !!enrolledId;
   log("Inscription au cours par code", enrollOk, enrollOk ? `course=${enrolledId}` : `HTTP ${e.status} ${JSON.stringify(e.json)}`);
   if (!enrollOk) fail();
+
+  // 5b. Direct pgvector similarity search (proves RAG retrieval works)
+  const qEmb = await googleEmbed("Comment l'eau s'evapore-t-elle ?");
+  if (qEmb) {
+    const ms = await api("/rest/v1/rpc/match_course_chunks", {
+      method: "POST",
+      token: studentToken,
+      body: { p_course_id: courseId, p_query_embedding: qEmb, p_match_count: 3 },
+    });
+    const msOk = ms.status === 200 && Array.isArray(ms.json) && ms.json.length >= 1 &&
+      typeof ms.json[0]?.similarity === "number";
+    log("Recherche vectorielle pgvector (RAG)", msOk, msOk
+      ? `${ms.json.length} extraits, top similarite=${ms.json[0].similarity.toFixed(3)}`
+      : `HTTP ${ms.status} ${JSON.stringify(ms.json)}`);
+    if (!msOk) fail();
+  } else {
+    log("Recherche vectorielle pgvector (RAG)", false, "GOOGLE_API_KEY absente de l'env");
+    fail();
+  }
 
   // 6. Ask AI (Gemini)
   const a = await api("/functions/v1/ask-ai", {

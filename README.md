@@ -76,6 +76,8 @@ npx.cmd supabase@latest db push
 ```bash
 npx.cmd supabase@latest functions deploy ask-ai
 npx.cmd supabase@latest functions deploy generate-exercises
+npx.cmd supabase@latest functions deploy practice-quiz
+npx.cmd supabase@latest functions deploy index-course
 ```
 
 ### Definir les secrets serveur
@@ -97,7 +99,7 @@ npx.cmd supabase@latest secrets set GOOGLE_API_KEY="..."
 ## Comportement important a connaitre
 
 - Les profils sont crees par la base lors de l'inscription.
-- Les reponses aux questions se basent uniquement sur `courses.content_text`.
+- Le tuteur utilise une recherche RAG hybride: a la creation, le cours est decoupe en chunks et indexe (embeddings `gemini-embedding-001`, table `course_chunks` + pgvector). A chaque question, les extraits les plus proches sont recuperes par similarite cosinus; si le cours n'est pas encore indexe, le tuteur retombe sur le texte complet `courses.content_text` (aucune regression).
 - Le PDF reste un support complementaire; il n'est pas utilise comme source de reponse.
 - Aucun contenu de demonstration n'est livre avec l'application.
 - Si aucun exercice n'a ete prepare pour un cours, l'eleve voit un etat vide clair au lieu de faux exercices.

@@ -86,3 +86,22 @@ export async function generatePracticeQuiz(params: {
     questions: questions as AssignmentQuestion[],
   };
 }
+
+/**
+ * Indexes a course for RAG (chunks + embeddings). Best-effort: the tutor falls
+ * back to the full course text if a course was never indexed.
+ */
+export async function indexCourse(courseId: string): Promise<{ chunks: number }> {
+  const headers = await getFunctionAuthHeaders();
+  const { data, error } = await supabase.functions.invoke("index-course", {
+    headers,
+    body: { courseId },
+  });
+
+  if (error) {
+    throw await toServiceError(error, "Indexation du cours impossible.");
+  }
+
+  const chunks = (data as { chunks?: unknown })?.chunks;
+  return { chunks: typeof chunks === "number" ? chunks : 0 };
+}

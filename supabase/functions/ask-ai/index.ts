@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { embedText } from "../_shared/rag.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -227,8 +228,32 @@ Deno.serve(async (req: Request) => {
     }
 
     const history = [...(historyRows ?? [])].reverse();
+
+    // Hybrid RAG: retrieve the chunks most similar to the question. Falls back to
+    // the full course text when the course has no chunks indexed yet, or if the
+    // embedding/retrieval step fails — so answer quality never regresses.
+    let contextText = courseText.slice(0, 24000);
+    try {
+      const queryEmbedding = await embedText(generationApiKey, body.question);
+      const { data: matches } = await supabase.rpc("match_course_chunks", {
+        p_course_id: course.id,
+        p_query_embedding: queryEmbedding,
+        p_match_count: 8,
+      });
+      if (Array.isArray(matches) && matches.length > 0) {
+        contextText = matches
+          .map(
+            (m: { content?: string }, i: number) =>
+              `[Extrait ${i + 1}]\n${m.content ?? ""}`,
+          )
+          .join("\n\n");
+      }
+    } catch {
+      // Keep the full-text fallback already in contextText.
+    }
+
     const fullSystemPrompt =
-      systemPrompt + `CONTENU DU COURS:\n\n${courseText.slice(0, 24000)}`;
+      systemPrompt + `CONTENU DU COURS:\n\n${contextText}`;
 
     const contents: Array<{
       role: "user" | "model";
