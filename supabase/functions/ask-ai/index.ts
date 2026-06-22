@@ -85,7 +85,7 @@ async function callCourseAnswerService(params: {
   history: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }>;
 }): Promise<string> {
   const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
     {
       method: "POST",
       headers: {

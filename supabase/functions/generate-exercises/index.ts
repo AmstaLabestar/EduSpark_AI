@@ -80,7 +80,7 @@ async function callExerciseGenerationService(params: {
   prompt: string;
 }): Promise<string> {
   const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
     {
       method: "POST",
       headers: {
@@ -95,7 +95,8 @@ async function callExerciseGenerationService(params: {
         ],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json",
         },
       }),
     },
