@@ -1,0 +1,44 @@
+name: Deploy Supabase
+
+# Redeploys the database migrations and edge functions whenever the supabase/
+# folder changes on main. The frontend itself is deployed separately by Vercel.
+#
+# Required GitHub secrets (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_ACCESS_TOKEN  -> personal access token (supabase.com/dashboard/account/tokens)
+#   SUPABASE_DB_PASSWORD   -> the database password of the project
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+  workflow_dispatch:
+
+env:
+  SUPABASE_PROJECT_REF: cfmgbtszysqdlhhqgrvl
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+
+      - name: Push migrations
+        run: supabase db push --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+
+      - name: Deploy edge functions
+        run: |
+          supabase functions deploy ask-ai --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy generate-exercises --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy practice-quiz --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy index-course --project-ref "$SUPABASE_PROJECT_REF"
